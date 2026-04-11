@@ -5,7 +5,9 @@
  * DermaAI - AI-powered skin analysis API
  * OpenAPI spec version: 0.1.0
  */
+import type { RoutineStep } from "./routineStep";
 
-export interface HealthStatus {
-  status: string;
+export interface SaveRoutineBody {
+  morning: RoutineStep[];
+  night: RoutineStep[];
 }

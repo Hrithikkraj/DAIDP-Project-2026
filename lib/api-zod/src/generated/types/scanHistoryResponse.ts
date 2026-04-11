@@ -5,7 +5,9 @@
  * DermaAI - AI-powered skin analysis API
  * OpenAPI spec version: 0.1.0
  */
+import type { ScanResult } from "./scanResult";
 
-export interface HealthStatus {
-  status: string;
+export interface ScanHistoryResponse {
+  scans: ScanResult[];
+  total: number;
 }
