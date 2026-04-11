@@ -73,7 +73,7 @@ export default function AnalysisResult() {
 
             {!compareMode ? (
               <div className="relative rounded-3xl overflow-hidden shadow-lg border border-slate-100 dark:border-zinc-700 bg-white dark:bg-zinc-900 group">
-                <img src="/__mockup/images/face-sample.jpg" alt="Analyzed face with detected skin conditions" className="w-full h-auto aspect-[3/4] object-cover object-center" />
+                <img src="/__mockup/images/face-sample.png" alt="Analyzed face with detected skin conditions" className="w-full h-auto aspect-[3/4] object-cover object-center" />
                 {showHighlights && (
                   <div aria-label="Skin condition highlights overlay">
                     <Hotspot top="44%" left="22%" size="14%" color="border-red-400 bg-red-400/20 shadow-[0_0_15px_rgba(248,113,113,0.5)] animate-pulse" label="Detected acne cluster — Left cheek" />
@@ -95,14 +95,14 @@ export default function AnalysisResult() {
               <div className="relative rounded-3xl overflow-hidden shadow-lg border border-slate-100 dark:border-zinc-700 bg-white dark:bg-zinc-900">
                 <div className="grid grid-cols-2 divide-x divide-slate-200 dark:divide-zinc-700">
                   <div className="relative">
-                    <img src="/__mockup/images/face-sample.jpg" alt="Before treatment" className="w-full aspect-[3/4] object-cover opacity-80 grayscale" />
+                    <img src="/__mockup/images/face-sample.png" alt="Before treatment" className="w-full aspect-[3/4] object-cover opacity-80 grayscale" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" aria-hidden />
                     <div className="absolute bottom-3 left-0 right-0 text-center">
                       <Badge className="bg-zinc-900/80 text-white border-0 text-xs">Before</Badge>
                     </div>
                   </div>
                   <div className="relative">
-                    <img src="/__mockup/images/face-sample.jpg" alt="After treatment" className="w-full aspect-[3/4] object-cover" />
+                    <img src="/__mockup/images/face-sample.png" alt="After treatment" className="w-full aspect-[3/4] object-cover" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" aria-hidden />
                     <div className="absolute bottom-3 left-0 right-0 text-center">
                       <Badge className="bg-primary/90 text-white border-0 text-xs">After 30 days</Badge>
