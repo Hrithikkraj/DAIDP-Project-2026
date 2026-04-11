@@ -1,147 +1,187 @@
-import React from "react";
-import { AppLayout } from "./_shared/AppLayout";
+import React, { useState } from "react";
+import { AppLayout, useDermaToast } from "./_shared/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, AlertTriangle, Droplets, Sun, Activity, CheckCircle2 } from "lucide-react";
+import { ArrowRight, AlertTriangle, Droplets, Sun, Activity, CheckCircle2, Eye, EyeOff } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+interface HotspotProps { top: string; left: string; size: string; color: string; label: string; delay?: string; }
+function Hotspot({ top, left, size, color, label, delay }: HotspotProps) {
+  const [showTip, setShowTip] = useState(false);
+  return (
+    <div className={cn("absolute rounded-full border-2 cursor-pointer group", color)} style={{ top, left, width: size, height: size, animationDelay: delay }}
+      onMouseEnter={() => setShowTip(true)} onMouseLeave={() => setShowTip(false)}
+      onClick={() => setShowTip(v => !v)}
+      role="button" aria-label={label} tabIndex={0}
+      onKeyDown={e => e.key === "Enter" && setShowTip(v => !v)}
+    >
+      {showTip && (
+        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-zinc-900 text-white text-xs font-medium px-3 py-1.5 rounded-xl whitespace-nowrap shadow-xl z-20 pointer-events-none animate-in fade-in zoom-in-95 duration-150">
+          {label}
+          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-900" aria-hidden />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AnalysisResult() {
+  const [showHighlights, setShowHighlights] = useState(true);
+  const [compareMode, setCompareMode] = useState(false);
+  const { addToast } = useDermaToast();
+
   return (
     <AppLayout activeTab="scan">
-      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10 max-w-5xl mx-auto w-full">
-        
+      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10 max-w-5xl mx-auto w-full">
+
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Your Results</h1>
-            <p className="text-slate-500 mt-1">Oct 24, 2024 • AI Confidence: 94%</p>
+            <h1 className="text-3xl font-bold tracking-tight">Your Results</h1>
+            <p className="text-muted-foreground mt-1">Oct 24, 2024 • AI Confidence: <span className="font-semibold text-foreground">94%</span></p>
           </div>
-          <Button className="rounded-full shadow-md bg-primary hover:bg-primary/90 text-primary-foreground group">
+          <Button className="rounded-full shadow-md bg-primary hover:bg-primary/90 text-primary-foreground group" onClick={() => addToast("Opening your personalized routine...", "info")}>
             View Routine
-            <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+            <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" aria-hidden />
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Image & Hotspots */}
-          <div className="lg:col-span-5 relative">
-            <div className="relative rounded-3xl overflow-hidden shadow-lg border border-slate-100 bg-white group">
-              <img 
-                src="/__mockup/images/face-sample.png" 
-                alt="Analyzed face" 
-                className="w-full h-auto aspect-[3/4] object-cover object-center"
-              />
-              
-              {/* CSS Hotspot Overlay 1 */}
-              <div className="absolute top-[45%] left-[25%] w-[15%] h-[12%] rounded-full border-2 border-red-400 bg-red-400/20 shadow-[0_0_15px_rgba(248,113,113,0.5)] animate-pulse"></div>
-              {/* CSS Hotspot Overlay 2 */}
-              <div className="absolute top-[50%] right-[30%] w-[12%] h-[10%] rounded-full border-2 border-red-400 bg-red-400/20 shadow-[0_0_15px_rgba(248,113,113,0.5)] animate-pulse" style={{ animationDelay: "1s" }}></div>
-              {/* CSS Hotspot Overlay 3 */}
-              <div className="absolute top-[30%] left-[45%] w-[20%] h-[8%] rounded-full border-2 border-primary bg-primary/20 shadow-[0_0_15px_rgba(139,175,139,0.5)]"></div>
+        {/* Bias aware */}
+        <div className="flex items-center gap-3 px-4 py-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-2xl">
+          <CheckCircle2 className="w-5 h-5 text-blue-600 shrink-0" aria-hidden />
+          <p className="text-sm text-blue-800 dark:text-blue-200">
+            <span className="font-semibold">Analysis optimized for your skin tone &amp; region.</span>
+            {" "}Results may vary across skin types. <span className="opacity-70">Disclaimer: for educational purposes only.</span>
+          </p>
+        </div>
 
-              <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-md rounded-2xl p-4 shadow-lg border border-white/50">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-slate-700">Overall Score</span>
-                  <span className="text-xl font-bold text-primary">78<span className="text-sm text-slate-500 font-normal">/100</span></span>
-                </div>
-                <div className="w-full h-1.5 bg-slate-200 rounded-full mt-2 overflow-hidden">
-                  <div className="h-full bg-primary rounded-full w-[78%]"></div>
-                </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Image & Hotspots */}
+          <div className="lg:col-span-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-muted-foreground">{compareMode ? "Before / After Comparison" : "Analyzed Image"}</span>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="rounded-full h-8 px-3 text-xs gap-1.5" onClick={() => setShowHighlights(v => !v)} aria-label={showHighlights ? "Hide acne highlights" : "Show acne highlights"}>
+                  {showHighlights ? <EyeOff className="w-3.5 h-3.5" aria-hidden /> : <Eye className="w-3.5 h-3.5" aria-hidden />}
+                  {showHighlights ? "Hide" : "Show"} Highlights
+                </Button>
+                <Button size="sm" variant="outline" className="rounded-full h-8 px-3 text-xs" onClick={() => setCompareMode(v => !v)} aria-label={compareMode ? "Show single view" : "Show before/after comparison"}>
+                  {compareMode ? "Single View" : "Before / After"}
+                </Button>
               </div>
             </div>
+
+            {!compareMode ? (
+              <div className="relative rounded-3xl overflow-hidden shadow-lg border border-slate-100 dark:border-zinc-700 bg-white dark:bg-zinc-900 group">
+                <img src="/__mockup/images/face-sample.jpg" alt="Analyzed face with detected skin conditions" className="w-full h-auto aspect-[3/4] object-cover object-center" />
+                {showHighlights && (
+                  <div aria-label="Skin condition highlights overlay">
+                    <Hotspot top="44%" left="22%" size="14%" color="border-red-400 bg-red-400/20 shadow-[0_0_15px_rgba(248,113,113,0.5)] animate-pulse" label="Detected acne cluster — Left cheek" />
+                    <Hotspot top="50%" left="63%" size="11%" color="border-red-400 bg-red-400/20 shadow-[0_0_15px_rgba(248,113,113,0.5)] animate-pulse" label="Inflammatory papules — Jawline" delay="0.8s" />
+                    <Hotspot top="28%" left="43%" size="18%" color="border-primary bg-primary/20 shadow-[0_0_15px_rgba(139,175,139,0.3)]" label="Hydration zone — T-Zone (normal)" />
+                  </div>
+                )}
+                <div className="absolute bottom-4 left-4 right-4 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md rounded-2xl p-3 shadow-lg border border-white/50 dark:border-zinc-700">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold">Overall Score</span>
+                    <span className="text-xl font-bold text-primary">78<span className="text-sm text-muted-foreground font-normal">/100</span></span>
+                  </div>
+                  <div className="w-full h-1.5 bg-slate-200 dark:bg-zinc-700 rounded-full mt-2 overflow-hidden" role="progressbar" aria-valuenow={78} aria-valuemin={0} aria-valuemax={100} aria-label="Overall skin score">
+                    <div className="h-full bg-primary rounded-full w-[78%] transition-all duration-1000" />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="relative rounded-3xl overflow-hidden shadow-lg border border-slate-100 dark:border-zinc-700 bg-white dark:bg-zinc-900">
+                <div className="grid grid-cols-2 divide-x divide-slate-200 dark:divide-zinc-700">
+                  <div className="relative">
+                    <img src="/__mockup/images/face-sample.jpg" alt="Before treatment" className="w-full aspect-[3/4] object-cover opacity-80 grayscale" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" aria-hidden />
+                    <div className="absolute bottom-3 left-0 right-0 text-center">
+                      <Badge className="bg-zinc-900/80 text-white border-0 text-xs">Before</Badge>
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <img src="/__mockup/images/face-sample.jpg" alt="After treatment" className="w-full aspect-[3/4] object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" aria-hidden />
+                    <div className="absolute bottom-3 left-0 right-0 text-center">
+                      <Badge className="bg-primary/90 text-white border-0 text-xs">After 30 days</Badge>
+                    </div>
+                  </div>
+                </div>
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-full bg-white/60 pointer-events-none" aria-hidden />
+              </div>
+            )}
           </div>
 
           {/* Analysis Details */}
-          <div className="lg:col-span-7 space-y-6">
-            <Card className="border-slate-100 shadow-sm bg-white/80 backdrop-blur-sm">
-              <CardHeader className="pb-3 border-b border-slate-50">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-xl text-slate-900">Clinical Summary</CardTitle>
-                  <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 font-medium px-3 py-1">
+          <div className="lg:col-span-7 space-y-5">
+            <Card className="border-slate-100 shadow-sm bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm">
+              <CardHeader className="pb-3 border-b border-slate-50 dark:border-zinc-800">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <CardTitle className="text-xl">Clinical Summary</CardTitle>
+                  <Badge variant="outline" className="bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800 font-medium px-3 py-1" role="status">
                     Moderate Acne
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="pt-4 text-slate-600 leading-relaxed text-sm sm:text-base">
-                Our analysis detects moderate inflammatory acne clustered around the lower cheeks and jawline. This pattern often correlates with hormonal fluctuations or barrier impairment. Skin hydration appears optimal in the T-zone but shows slight dehydration on the outer perimeter. Pigmentation is even across the board.
+              <CardContent className="pt-4 text-muted-foreground leading-relaxed text-sm">
+                Our analysis detects moderate inflammatory acne clustered around the lower cheeks and jawline. This pattern often correlates with hormonal fluctuations or barrier impairment. Skin hydration appears optimal in the T-zone but shows slight dehydration on the outer perimeter.
               </CardContent>
             </Card>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Card className="border-slate-100 shadow-sm bg-white/60 backdrop-blur-sm">
-                <CardContent className="p-5 flex items-start gap-4">
-                  <div className="p-2.5 rounded-xl bg-red-50 text-red-500 shrink-0">
-                    <AlertTriangle className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-slate-900 mb-1">Inflammation</h4>
-                    <p className="text-sm text-slate-500">Elevated around jawline. Needs soothing ingredients.</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-slate-100 shadow-sm bg-white/60 backdrop-blur-sm">
-                <CardContent className="p-5 flex items-start gap-4">
-                  <div className="p-2.5 rounded-xl bg-blue-50 text-blue-500 shrink-0">
-                    <Droplets className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-slate-900 mb-1">Hydration</h4>
-                    <p className="text-sm text-slate-500">Balanced T-Zone, but dry cheeks detected.</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-slate-100 shadow-sm bg-white/60 backdrop-blur-sm">
-                <CardContent className="p-5 flex items-start gap-4">
-                  <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0">
-                    <Sun className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-slate-900 mb-1">Sun Damage</h4>
-                    <p className="text-sm text-slate-500">Minimal visible UV damage. Keep using SPF.</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-slate-100 shadow-sm bg-white/60 backdrop-blur-sm">
-                <CardContent className="p-5 flex items-start gap-4">
-                  <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0">
-                    <Activity className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-slate-900 mb-1">Texture</h4>
-                    <p className="text-sm text-slate-500">Smooth overall, minor congestion near chin.</p>
-                  </div>
-                </CardContent>
-              </Card>
+              {[
+                { icon: AlertTriangle, color: "bg-red-50 dark:bg-red-950/20 text-red-500", title: "Inflammation", desc: "Elevated around jawline. Needs soothing ingredients." },
+                { icon: Droplets, color: "bg-blue-50 dark:bg-blue-950/20 text-blue-500", title: "Hydration", desc: "Balanced T-Zone, but dry cheeks detected." },
+                { icon: Sun, color: "bg-primary/10 text-primary", title: "Sun Damage", desc: "Minimal visible UV damage. Keep using SPF." },
+                { icon: Activity, color: "bg-primary/10 text-primary", title: "Texture", desc: "Smooth overall, minor congestion near chin." },
+              ].map((item, i) => (
+                <Card key={i} className="border-slate-100 shadow-sm bg-white/60 dark:bg-zinc-900/60 backdrop-blur-sm hover:shadow-md transition-shadow">
+                  <CardContent className="p-4 flex items-start gap-3">
+                    <div className={cn("p-2 rounded-xl shrink-0", item.color)} aria-hidden>
+                      <item.icon className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-sm">{item.title}</h4>
+                      <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
 
-            <Card className="border-slate-100 shadow-sm bg-secondary/10 border-secondary/20">
+            <Card className="border-primary/20 bg-primary/5 dark:bg-primary/10">
               <CardContent className="p-5">
-                <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-secondary-foreground" />
+                <h4 className="font-semibold mb-3 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-primary" aria-hidden />
                   Recommended Action Plan
                 </h4>
-                <ul className="space-y-2 text-sm text-slate-600">
-                  <li className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-secondary-foreground mt-1.5 shrink-0"></span>
-                    <span>Introduce a gentle BHA (Salicylic Acid) exfoliant 2x a week to clear congestion.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-secondary-foreground mt-1.5 shrink-0"></span>
-                    <span>Focus on barrier repair using Ceramides to soothe inflammation.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-secondary-foreground mt-1.5 shrink-0"></span>
-                    <span>Avoid heavy occlusive creams on the jawline area.</span>
-                  </li>
+                <ul className="space-y-2 text-sm text-muted-foreground" role="list">
+                  {[
+                    "Introduce a gentle BHA (Salicylic Acid) exfoliant 2x a week to clear congestion.",
+                    "Focus on barrier repair using Ceramides to soothe inflammation.",
+                    "Avoid heavy occlusive creams on the jawline area.",
+                  ].map((item, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" aria-hidden />
+                      {item}
+                    </li>
+                  ))}
                 </ul>
               </CardContent>
             </Card>
 
+            <Button
+              className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-md group h-12"
+              onClick={() => addToast("Routine saved to your dashboard!", "success")}
+              aria-label="Save results to dashboard"
+            >
+              Save Results &amp; View Routine
+              <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" aria-hidden />
+            </Button>
           </div>
         </div>
-
       </div>
     </AppLayout>
   );
