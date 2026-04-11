@@ -1,0 +1,121 @@
+Design a modern, high-fidelity UI prototype for an AI skincare analysis web app using React (Vite) and Tailwind CSS.
+
+IMPORTANT:
+- This is ONLY a design prototype (no backend, no real AI, no authentication logic)
+- Focus on UI/UX, layout, and visual polish
+- Use mock/static data everywhere
+
+App Name: "DermaAI"
+
+Design Style:
+- Clean, dermatology-inspired aesthetic
+- Colors: white, beige, soft green, light blue
+- Rounded cards, soft shadows, minimal UI
+- Mobile-first, fully responsive
+- Smooth transitions and modern UI feel
+
+Create the following screens:
+
+1. Landing Page
+- Hero section with:
+  - Title: "AI-powered skin analysis tailored to you"
+  - Subtitle explaining bias-aware AI (region/skin tone inclusion)
+  - CTA buttons: "Start Scan", "Learn More"
+- Sections:
+  - "How it Works" (3 steps with icons)
+  - "Why DermaAI" (highlight fairness & personalization)
+- Clean footer
+
+2. Signup Page (UI only)
+- Fields:
+  - Name
+  - Email
+  - Password
+  - Skin Type dropdown (Oily, Dry, Combination, Sensitive)
+  - Region/Ethnicity dropdown
+- Styled form with validation UI (no real logic)
+
+3. Login Page (UI only)
+- Email + Password inputs
+- "Forgot Password" (non-functional)
+- Link to Signup
+
+4. Dashboard Page
+- Welcome message (e.g., "Hello, User")
+- Cards:
+  - "Start New Scan"
+  - "Last Scan Result" (mock acne level)
+  - "Skin Score" (mock progress bar)
+- Clean grid layout
+
+5. Skin Scan Page
+- Drag-and-drop upload area
+- "Upload Image" button
+- Camera capture UI placeholder
+- Image preview section (static sample image)
+- "Analyze Skin" button (non-functional)
+
+6. Analysis Result Page
+- Show sample face image
+- Acne severity display:
+  - Mild / Moderate / Severe (styled badges)
+- Fake highlighted regions on face (UI overlay boxes)
+- Confidence score (static %)
+- Short explanation text
+
+7. Recommendation Page
+- Sections:
+  - Morning Routine (cards)
+  - Night Routine (cards)
+- Product suggestion cards:
+  - Image
+  - Name
+  - Short description
+- "Save Routine" button (UI only)
+
+8. Questionnaire Page
+- 5–7 multiple-choice questions:
+  - Sleep
+  - Water intake
+  - Diet
+  - Stress
+- Styled radio buttons / sliders
+- "Submit" button (no logic)
+
+9. Navigation
+- Top navbar:
+  - Logo (DermaAI)
+  - Dashboard
+  - Scan
+  - Profile
+- Mobile hamburger menu
+
+10. UI Components
+Create reusable components:
+- Button
+- Card
+- Input Field
+- Dropdown
+- Badge
+- Progress Bar
+
+11. UX Enhancements
+- Add loading animation for "Analyzing..."
+- Add smooth transitions between pages
+- Add toast notifications (UI only)
+- Use icons (Heroicons or Lucide)
+
+12. Code Structure
+- components/
+- pages/
+- assets/
+- styles/
+
+13. Output Requirements
+- Clean, readable React code
+- Fully responsive UI
+- No backend, no API calls
+- Use placeholder/mock data only
+
+Goal:
+The app should look like a real AI skincare product ready for demo, even though it is purely frontend.

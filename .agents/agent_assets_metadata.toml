@@ -1,0 +1,50 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "fvG37xQkggXh8WcJTgGql"
+uri = "file://artifacts/mockup-sandbox/public/images/face-sample.png"
+type = "image"
+title = "face sample for analysis"
+
+[[generated]]
+id = "ibl8nuq6MniZ_I2-TEPp_"
+uri = "file://artifacts/mockup-sandbox/public/images/product-1.png"
+type = "image"
+title = "skincare product 1"
+
+[[generated]]
+id = "geycKKgEqUy4xvKGDq1XV"
+uri = "file://artifacts/mockup-sandbox/public/images/product-2.png"
+type = "image"
+title = "skincare product 2"
+
+[[generated]]
+id = "exHRfoG5j6f2bipRfZ21M"
+uri = "file://artifacts/mockup-sandbox/public/images/product-3.png"
+type = "image"
+title = "skincare product 3"
+
+[[generated]]
+id = "YGJuKfRQo60UuMWFPhH6E"
+uri = "file://artifacts/mockup-sandbox/public/images/product-4.png"
+type = "image"
+title = "skincare product 4"
+
+[[generated]]
+id = "Ew5Uszl0a3YcoVliW7czO"
+uri = "file://artifacts/mockup-sandbox/public/images/product-5.png"
+type = "image"
+title = "skincare product 5"
+
+[[generated]]
+id = "-K6JMT1WVIENzzh1kdnyH"
+uri = "file://artifacts/mockup-sandbox/public/images/product-6.png"
+type = "image"
+title = "skincare product 6"
+
+[[generated]]
+id = "v_aGV-6y9I0LWUIoufKOa"
+uri = "file://artifacts/mockup-sandbox/public/images/hero-bg.png"
+type = "image"
+title = "landing page hero image"
