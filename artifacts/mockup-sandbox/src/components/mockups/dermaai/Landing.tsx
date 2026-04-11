@@ -1,5 +1,5 @@
 import React from "react";
-import { Sparkles, ArrowRight, ShieldCheck, Microscope, HeartPulse } from "lucide-react";
+import { Sparkles, ArrowRight, ShieldCheck, Microscope, HeartPulse, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function Landing() {
