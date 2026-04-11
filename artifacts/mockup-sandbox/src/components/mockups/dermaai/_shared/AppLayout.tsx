@@ -2,6 +2,19 @@ import React, { useState, useEffect, createContext, useContext } from "react";
 import { Menu, X, Sparkles, User, Home, Camera, LogOut, Moon, Sun, Bell, CheckCircle2, AlertCircle, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const DARK_KEY = "dermaai-dark";
+
+export function getDarkPref(): boolean {
+  try { return localStorage.getItem(DARK_KEY) === "1"; } catch { return false; }
+}
+function setDarkPref(v: boolean) {
+  try { localStorage.setItem(DARK_KEY, v ? "1" : "0"); } catch {}
+}
+function applyDark(v: boolean) {
+  if (v) document.documentElement.classList.add("dark");
+  else document.documentElement.classList.remove("dark");
+}
+
 type ToastType = "success" | "error" | "info";
 interface Toast { id: number; message: string; type: ToastType; }
 interface ToastCtx { addToast: (msg: string, type?: ToastType) => void; }
@@ -40,7 +53,7 @@ interface AppLayoutProps {
 
 export function AppLayout({ children, activeTab }: AppLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [dark, setDark] = useState(false);
+  const [dark, setDarkState] = useState<boolean>(getDarkPref);
   const [toasts, setToasts] = useState<Toast[]>([]);
   let toastCounter = 0;
 
@@ -52,11 +65,25 @@ export function AppLayout({ children, activeTab }: AppLayoutProps) {
 
   const removeToast = (id: number) => setToasts(prev => prev.filter(t => t.id !== id));
 
+  const toggleDark = () => {
+    const next = !dark;
+    setDarkState(next);
+    setDarkPref(next);
+    applyDark(next);
+  };
+
   useEffect(() => {
-    const root = document.documentElement;
-    if (dark) root.classList.add("dark");
-    else root.classList.remove("dark");
-  }, [dark]);
+    applyDark(dark);
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === DARK_KEY) {
+        const next = e.newValue === "1";
+        setDarkState(next);
+        applyDark(next);
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   const navLinks = [
     { id: "dashboard", label: "Dashboard", icon: Home },
@@ -66,11 +93,11 @@ export function AppLayout({ children, activeTab }: AppLayoutProps) {
 
   return (
     <ToastContext.Provider value={{ addToast }}>
-      <div className={cn("min-h-screen flex flex-col font-sans text-foreground selection:bg-primary/20 selection:text-primary transition-colors duration-300", dark ? "dark bg-zinc-950" : "bg-background")}>
+      <div className="min-h-screen flex flex-col font-sans text-foreground selection:bg-primary/20 selection:text-primary transition-colors duration-300 bg-background">
         <ToastList toasts={toasts} remove={removeToast} />
 
         {/* Navbar */}
-        <header className={cn("sticky top-0 z-50 w-full border-b backdrop-blur-xl", dark ? "bg-zinc-950/90 border-zinc-800" : "bg-background/80 border-border/40")}>
+        <header className="sticky top-0 z-50 w-full border-b backdrop-blur-xl bg-background/80 border-border/40">
           <div className="container mx-auto px-4 h-16 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="bg-primary/10 p-2 rounded-xl text-primary">
@@ -95,7 +122,7 @@ export function AppLayout({ children, activeTab }: AppLayoutProps) {
             <div className="hidden md:flex items-center gap-1">
               <button
                 aria-label="Toggle dark mode"
-                onClick={() => setDark(d => !d)}
+                onClick={toggleDark}
                 className="p-2 text-muted-foreground hover:text-primary transition-colors rounded-full hover:bg-primary/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 {dark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
@@ -119,7 +146,7 @@ export function AppLayout({ children, activeTab }: AppLayoutProps) {
         </header>
 
         {mobileMenuOpen && (
-          <div className={cn("md:hidden fixed inset-0 top-16 z-40 border-b animate-in fade-in slide-in-from-top-4", dark ? "bg-zinc-950 border-zinc-800" : "bg-background border-border")}>
+          <div className="md:hidden fixed inset-0 top-16 z-40 border-b animate-in fade-in slide-in-from-top-4 bg-background border-border">
             <nav className="flex flex-col p-4 gap-2">
               {navLinks.map((link) => (
                 <a key={link.id} href="#"
@@ -132,7 +159,7 @@ export function AppLayout({ children, activeTab }: AppLayoutProps) {
                 </a>
               ))}
               <div className="flex items-center gap-2 p-4">
-                <button onClick={() => setDark(d => !d)} className="flex items-center gap-3 text-base font-medium text-muted-foreground">
+                <button onClick={toggleDark} className="flex items-center gap-3 text-base font-medium text-muted-foreground">
                   {dark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                   {dark ? "Light Mode" : "Dark Mode"}
                 </button>

@@ -1,8 +1,20 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Sparkles, ArrowRight, ShieldCheck, Microscope, HeartPulse, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getDarkPref } from "./_shared/AppLayout";
+
+function useDarkSync() {
+  useEffect(() => {
+    const apply = (v: boolean) => v ? document.documentElement.classList.add("dark") : document.documentElement.classList.remove("dark");
+    apply(getDarkPref());
+    const handler = (e: StorageEvent) => { if (e.key === "dermaai-dark") apply(e.newValue === "1"); };
+    window.addEventListener("storage", handler);
+    return () => window.removeEventListener("storage", handler);
+  }, []);
+}
 
 export default function Landing() {
+  useDarkSync();
   return (
     <div className="min-h-screen bg-background font-sans text-foreground selection:bg-primary/20 selection:text-primary flex flex-col overflow-hidden">
       {/* Navigation */}
