@@ -1,0 +1,135 @@
+Build ONLY the frontend UI for a web application called "DermaAI".
+
+STRICT RULES (MUST FOLLOW):
+- DO NOT create any backend code
+- DO NOT create any server (NO Node.js, NO Express)
+- DO NOT create any database schema (NO MongoDB, NO SQL)
+- DO NOT write any API implementation
+- ONLY build frontend UI
+- ONLY use placeholder/mock data (static JSON inside frontend)
+
+If any backend-related code is generated, it is WRONG.
+
+-----------------------------------
+1. TECH STACK (BEGINNER FRIENDLY)
+-----------------------------------
+- React (Vite)
+- Plain JavaScript
+- Basic CSS (or simple Tailwind)
+- No advanced libraries
+
+-----------------------------------
+2. DATA HANDLING
+-----------------------------------
+- DO NOT call real APIs
+- Use static/mock data like:
+
+const mockResult = {
+  acneLevel: "Moderate",
+  confidence: 85,
+  regions: ["forehead", "cheeks"]
+};
+
+const mockHistory = [
+  { date: "2026-04-01", acneLevel: "Mild" },
+  { date: "2026-04-05", acneLevel: "Moderate" }
+];
+
+-----------------------------------
+3. PAGES (MATCH DESIGN EXACTLY)
+-----------------------------------
+
+1. Landing Page
+- Hero section
+- Buttons: Start Scan, Login
+
+2. Signup Page (UI only)
+- Form fields (no real submission)
+
+3. Login Page (UI only)
+- Form fields (no real login)
+
+4. Dashboard
+- Show mock user name
+- Show mock scan history
+
+5. Skin Scan Page
+- Image upload input
+- Show preview of selected image
+- "Analyze Skin" button
+
+On click:
+- Show loading animation (2–3 sec delay)
+- Then navigate to Result page
+
+6. Result Page
+- Show:
+  - Acne Level
+  - Confidence
+  - Regions
+- Use mock data
+- Display uploaded image
+
+7. Recommendation Page
+- Show routine based on acne level
+- Static product cards
+
+8. Questionnaire Page
+- Simple questions UI (no backend)
+
+-----------------------------------
+4. IMAGE PREVIEW ONLY
+-----------------------------------
+- Use URL.createObjectURL(file) to preview image
+- DO NOT upload image anywhere
+
+-----------------------------------
+5. STATE MANAGEMENT
+-----------------------------------
+- Use useState only
+- Pass data between pages using simple state or props
+
+-----------------------------------
+6. ROUTING
+-----------------------------------
+Use React Router:
+
+/  
+/login  
+/signup  
+/dashboard  
+/scan  
+/result  
+/recommendation  
+
+-----------------------------------
+7. UI REQUIREMENTS
+-----------------------------------
+- Match previously designed UI EXACTLY
+- Same layout, colors, spacing
+- Clean and responsive design
+
+-----------------------------------
+8. LOADING + UX
+-----------------------------------
+- Show "Analyzing..." loader
+- Simulate delay using setTimeout
+
+-----------------------------------
+9. CODE STYLE
+-----------------------------------
+- Beginner-friendly
+- Simple components
+- Add comments
+- Keep code readable
+
+-----------------------------------
+FINAL GOAL:
+This should be a fully working frontend prototype ONLY.
+
+- No backend
+- No API calls
+- No database
+- No server
+
+Just UI + mock data + smooth user flow.
