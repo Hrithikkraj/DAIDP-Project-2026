@@ -1,0 +1,160 @@
+Build the frontend for an AI skincare web app called "DermaAI".
+
+IMPORTANT:
+- Backend is already implemented (DO NOT create backend)
+- You must connect to existing APIs using fetch()
+- Keep code beginner-friendly (simple React + basic HTML, CSS, JS)
+- Match the previously designed UI exactly (same pages, layout, colors, and structure)
+- Avoid complex libraries or advanced patterns
+
+-----------------------------------
+1. TECH STACK
+-----------------------------------
+- React (Vite)
+- Basic CSS (or simple Tailwind if needed)
+- JavaScript (no TypeScript)
+- Use fetch() for API calls (NOT axios)
+
+-----------------------------------
+2. ASSUME BACKEND APIs
+-----------------------------------
+Use these endpoints:
+
+POST /api/signup
+POST /api/login
+POST /api/analyze
+GET /api/history
+POST /api/save-routine
+
+Assume base URL:
+http://localhost:5000
+
+-----------------------------------
+3. PAGES TO IMPLEMENT (MATCH DESIGN EXACTLY)
+-----------------------------------
+
+1. Landing Page
+- Hero section
+- "Start Scan" button → go to login/signup
+
+2. Signup Page
+- Form fields:
+  - Name, Email, Password
+  - Skin Type
+  - Region/Ethnicity
+- On submit:
+  - Call /api/signup
+  - Redirect to dashboard
+
+3. Login Page
+- Email + Password
+- Call /api/login
+- Save user in localStorage
+- Redirect to dashboard
+
+4. Dashboard
+- Show:
+  - Welcome message
+  - "Start Scan" button
+  - Previous scan results (from /api/history)
+
+5. Skin Scan Page
+- Upload image input
+- Preview selected image
+- Button: "Analyze Skin"
+
+On click:
+- Send image using FormData to /api/analyze
+- Show loading state
+- Redirect to results page with response data
+
+6. Result Page
+- Display:
+  - Acne level
+  - Confidence %
+  - Affected regions
+- Show uploaded image
+- Button: "View Recommendations"
+
+7. Recommendation Page
+- Show routine based on acne level:
+  - Mild → basic routine
+  - Moderate → intermediate
+  - Severe → advanced care
+- Button: "Save Routine" → call /api/save-routine
+
+8. Questionnaire Page
+- Simple form (5 questions)
+- Store answers in state (no need backend unless required)
+
+-----------------------------------
+4. IMAGE UPLOAD (IMPORTANT)
+-----------------------------------
+Use FormData:
+
+const formData = new FormData();
+formData.append("image", file);
+
+fetch("http://localhost:5000/api/analyze", {
+  method: "POST",
+  body: formData
+});
+
+-----------------------------------
+5. STATE MANAGEMENT (KEEP SIMPLE)
+-----------------------------------
+Use:
+- useState
+- useEffect
+
+Store:
+- User info → localStorage
+- Analysis result → pass via props or use simple global state
+
+-----------------------------------
+6. LOADING + ERROR HANDLING
+-----------------------------------
+- Show "Analyzing..." while waiting
+- Show error if:
+  - No image selected
+  - API fails
+
+-----------------------------------
+7. NAVIGATION
+-----------------------------------
+Use React Router:
+- / → Landing
+- /login
+- /signup
+- /dashboard
+- /scan
+- /result
+- /recommendation
+
+-----------------------------------
+8. UI REQUIREMENTS
+-----------------------------------
+- Follow EXACT same UI as previously designed
+- Keep:
+  - Colors
+  - Layout
+  - Cards
+  - Buttons
+- Make responsive (mobile + desktop)
+
+-----------------------------------
+9. CODE STYLE (BEGINNER FRIENDLY)
+-----------------------------------
+- Use simple functional components
+- Keep files small and readable
+- Add comments explaining logic
+- Avoid complex patterns
+
+-----------------------------------
+10. FINAL GOAL
+-----------------------------------
+Frontend should:
+- Work perfectly with backend APIs
+- Allow full flow:
+  Login → Upload Image → Analyze → Show Results → Save Routine
+- Look exactly like the designed prototype
