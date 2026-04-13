@@ -8,7 +8,7 @@ A modern AI-powered skincare analysis and recommendation platform built with Rea
 
 Before running this project locally, ensure you have the following installed on your PC:
 
-- **Node.js** v20 or later - [Download here](https://nodejs.org/)
+- **Node.js** v20 or later - [Download here](https://github.com/coreybutler/nvm-windows/releases)
 - **pnpm** (package manager for monorepos) - Install globally via:
   ```powershell
   npm install -g pnpm
