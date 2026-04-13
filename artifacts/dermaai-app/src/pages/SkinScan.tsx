@@ -22,6 +22,7 @@ export default function SkinScan({ setUploadedImageUrl, setScanResult }: { setUp
   const [scanState, setScanState] = useState<ScanState>("idle");
   const [imageCaptured, setImageCaptured] = useState(false);
   const [localImageUrl, setLocalImageUrl] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null); // Add this!
   const [errorType, setErrorType] = useState<ErrorType>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [stepDone, setStepDone] = useState<boolean[]>([false, false, false, false]);
@@ -29,29 +30,76 @@ export default function SkinScan({ setUploadedImageUrl, setScanResult }: { setUp
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [, setLocation] = useLocation();
 
-  const runAnalysis = () => {
+  // const runAnalysis = () => {
+  //   setScanState("analyzing");
+  //   setCurrentStep(0);
+  //   setStepDone([false, false, false, false]);
+
+  //   STEPS.forEach((_, i) => {
+  //     setTimeout(() => {
+  //       setCurrentStep(i);
+  //       setStepDone(prev => {
+  //         const n = [...prev];
+  //         if (i > 0) n[i - 1] = true;
+  //         return n;
+  //       });
+  //     }, i * 700);
+  //   });
+
+  //   setTimeout(() => {
+  //     setStepDone([true, true, true, true]);
+  //     setScanState("done");
+  //     addToast("Analysis complete! Results are ready.", "success");
+  //     setScanResult(mockResult);
+  //     if(localImageUrl) setUploadedImageUrl(localImageUrl);
+  //   }, STEPS.length * 700 + 400);
+  // };
+
+  const runAnalysis = async () => {
+    if (!selectedFile) return;
+
     setScanState("analyzing");
-    setCurrentStep(0);
-    setStepDone([false, false, false, false]);
+    setCurrentStep(0); 
 
-    STEPS.forEach((_, i) => {
-      setTimeout(() => {
-        setCurrentStep(i);
-        setStepDone(prev => {
-          const n = [...prev];
-          if (i > 0) n[i - 1] = true;
-          return n;
-        });
-      }, i * 700);
-    });
+    // MUST MATCH BACKEND: Use "file" as the key
+    const formData = new FormData();
+    formData.append("file", selectedFile); 
 
-    setTimeout(() => {
+    try {
+      // MUST MATCH BACKEND: Use the /predict/ endpoint
+      const response = await fetch("http://127.0.0.1:8000/predict/", { 
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // The raw JSON from FastAPI response
+      const realResult = await response.json();
+
+      // The backend returns { filename: "...", results: { ...models } }
+      // We probably only want to pass the actual results object to the UI
+      const inferenceData = realResult.results;
+
+      // --- ADDED THIS LINE: Save to localStorage for the Recommendations page ---
+      localStorage.setItem("derma_scan_result", JSON.stringify(inferenceData));
+      // ------------------------------------------------------------------------
+
       setStepDone([true, true, true, true]);
       setScanState("done");
       addToast("Analysis complete! Results are ready.", "success");
-      setScanResult(mockResult);
-      if(localImageUrl) setUploadedImageUrl(localImageUrl);
-    }, STEPS.length * 700 + 400);
+      
+      // Pass the inference data to your result page state
+      setScanResult(inferenceData); 
+      
+      if (localImageUrl) setUploadedImageUrl(localImageUrl);
+
+    } catch (error) {
+      console.error("Failed to analyze skin:", error);
+      triggerError("network"); 
+    }
   };
 
   const triggerError = (type: ErrorType) => {
@@ -71,11 +119,21 @@ export default function SkinScan({ setUploadedImageUrl, setScanResult }: { setUp
     setErrorType(null);
   };
 
+  // const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   const file = e.target.files?.[0];
+  //   if (file) {
+  //     const url = URL.createObjectURL(file);
+  //     setLocalImageUrl(url);
+  //     setImageCaptured(true);
+  //   }
+  // };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const url = URL.createObjectURL(file);
       setLocalImageUrl(url);
+      setSelectedFile(file); // Save the actual file object
       setImageCaptured(true);
     }
   };
