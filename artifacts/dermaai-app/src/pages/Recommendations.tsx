@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Info, Bookmark, ExternalLink, Sparkles, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Defining the shape of the data coming from your FastAPI backend
 type ApiProduct = {
   "Skin type": string;
   "Product": string;
@@ -19,13 +18,11 @@ function ProductCard({ product }: { product: ApiProduct }) {
   return (
     <Card className="border-slate-100 shadow-sm bg-white dark:bg-zinc-900 hover:shadow-md transition-shadow group flex flex-col h-full overflow-hidden">
       <div className="relative aspect-square bg-slate-50 dark:bg-zinc-800 overflow-hidden p-4 flex items-center justify-center">
-        {/* Render the actual product image from the CSV */}
         <img 
           src={product.product_pic} 
           alt={product.Product}
           className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500 mix-blend-multiply dark:mix-blend-normal"
           onError={(e) => {
-            // Fallback if the URL in the CSV is broken
             e.currentTarget.src = "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?q=80&w=600&auto=format&fit=crop";
           }}
         />
@@ -62,25 +59,29 @@ export default function Recommendations() {
   useEffect(() => {
     const fetchRecommendations = async () => {
       try {
-        // 1. Retrieve the saved inference data
         const savedData = localStorage.getItem("derma_scan_result");
         
-        // Default values just in case user bypassed the scan page
         let skinType = "balanced"; 
-        let confidence = 0.80;
-        let concern = "acne"; // Default concern, you can make this dynamic later!
+        let confidence = 0.85;
+        let concern = "acne"; 
 
         if (savedData) {
           const parsedData = JSON.parse(savedData);
-          const resnetData = parsedData.Skin_Type_ResNet50?.data;
           
-          if (resnetData) {
-            skinType = resnetData.predicted_class;
-            confidence = resnetData.confidence;
+          // Grab the unified base skin type
+          skinType = parsedData.final_skin_type || "balanced";
+          
+          // If a condition is detected, use the first one. If empty, clear the concern to search broadly.
+          if (parsedData.detected_conditions && parsedData.detected_conditions.length > 0) {
+            concern = parsedData.detected_conditions[0];
+          } else {
+            concern = ""; 
           }
+          
+          // Grab confidence from the base ResNet model if available
+          confidence = parsedData.raw_model_data?.Skin_Type_ResNet50?.data?.confidence || 0.85;
         }
 
-        // 2. Call your new FastAPI endpoint
         const response = await fetch("http://127.0.0.1:8000/recommend/", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

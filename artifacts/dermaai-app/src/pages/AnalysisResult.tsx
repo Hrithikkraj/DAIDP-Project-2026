@@ -3,7 +3,7 @@ import { AppLayout, useDermaToast } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, AlertTriangle, Droplets, Sun, Activity, CheckCircle2, Eye, EyeOff, ShieldAlert } from "lucide-react";
+import { ArrowRight, AlertTriangle, Droplets, Activity, CheckCircle2, Eye, EyeOff, ShieldAlert, HeartPulse } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
 
@@ -34,28 +34,42 @@ export default function AnalysisResult({ uploadedImageUrl, scanResult }: { uploa
   
   const imageSrc = uploadedImageUrl || "https://images.unsplash.com/photo-1549416878-b9ca95e26922?q=80&w=2127&auto=format&fit=crop";
 
-  // --- DATA EXTRACTION FROM TIERED BACKEND PIPELINE ---
+  // --- DATA EXTRACTION FROM NEW ENSEMBLE PIPELINE ---
   const apiData = scanResult || {};
-  const skinTypeData = apiData.Skin_Type_ResNet50?.data || {};
-  const fitzHighData = apiData.Fitzpatrick17k_High?.data || {};
-  const fitzMidData = apiData.Fitzpatrick17k_Mid?.data || {};
-  const fitzLowData = apiData.Fitzpatrick17k_low?.data || {};
-
-  // Map the specific backend classifications
-  const skinType = skinTypeData.predicted_class || "Balanced";
-  const clinicalHigh = fitzHighData.predicted_class || "Unknown";
-  const clinicalMid = fitzMidData.predicted_class || "Unknown";
-  const clinicalLow = fitzLowData.predicted_class || "Unknown";
   
-  // Calculate average confidence (Focusing heavily on ResNet as the Fitz models are low confidence)
-  const confResNet = skinTypeData.confidence || 0;
-  const confHigh = fitzHighData.confidence || 0;
-  const displayConfidence = confResNet 
-    ? Math.round(confResNet * 100) 
-    : 87; // Defaulting to ResNet confidence as the primary metric
-    
-  // Placeholder variables for features the backend doesn't support yet
-  const skinScore = 85; 
+  const skinType = apiData.final_skin_type || "Balanced";
+  const detectedConditions: string[] = apiData.detected_conditions || [];
+  const severityScore = apiData.severity_score || 0;
+  const clinicalVerdict = apiData.clinical_verdict || "Clear";
+  
+  // Define appropriate severity thresholds.
+  const CONCERNING_SEVERITY_MIN = 1.5; // Start of Moderate
+  const GENERAL_CONCERN_LABEL = "Clinical Concern Identified";
+
+  // Condition display logic, incorporating the safety net override.
+  let conditionsText;
+
+  if (severityScore < CONCERNING_SEVERITY_MIN) {
+    // LOW SEVERITY RULE: Proceed with normal mapping.
+    conditionsText = detectedConditions.length > 0
+      ? detectedConditions.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(", ")
+      : "Normal / Clear";
+  } else {
+    // HIGH SEVERITY RULE (Moderate or Severe).
+    if (detectedConditions.length > 0) {
+      // High severity + identified concerns. (e.g., severe acne)
+      conditionsText = detectedConditions.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(", ");
+    } else {
+      // High severity + NO specified concerns. This is the malignant fix case!
+      conditionsText = GENERAL_CONCERN_LABEL;
+    }
+  }
+
+  // Check if we need to show the medical advisory warning
+  const needsMedicalAdvisory = ["Moderate", "Severe"].includes(clinicalVerdict);
+
+  // Map severity score (approx 0 to 4) to a 100-point skin health score
+  const skinScore = Math.max(0, Math.min(100, Math.round(100 - (severityScore * 25))));
 
   return (
     <AppLayout activeTab="scan">
@@ -64,7 +78,7 @@ export default function AnalysisResult({ uploadedImageUrl, scanResult }: { uploa
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Your Results</h1>
-            <p className="text-muted-foreground mt-1">Just now • Primary AI Confidence: <span className="font-semibold text-foreground">{displayConfidence}%</span></p>
+            <p className="text-muted-foreground mt-1">Just now • Primary AI pipeline active</p>
           </div>
           <Link href="/recommendation" className="rounded-full shadow-md bg-primary hover:bg-primary/90 text-primary-foreground group inline-flex h-10 items-center justify-center px-4 py-2 font-medium">
             View Routine
@@ -72,14 +86,20 @@ export default function AnalysisResult({ uploadedImageUrl, scanResult }: { uploa
           </Link>
         </div>
 
-        {/* Bias aware */}
-        <div className="flex items-center gap-3 px-4 py-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-2xl">
-          <CheckCircle2 className="w-5 h-5 text-blue-600 shrink-0" aria-hidden />
-          <p className="text-sm text-blue-800 dark:text-blue-200">
-            <span className="font-semibold">Analysis optimized for varied skin types.</span>
-            {" "}Results may vary. <span className="opacity-70">Disclaimer: for educational purposes only.</span>
-          </p>
-        </div>
+        {/* Dynamic Medical Advisory Banner */}
+        {needsMedicalAdvisory && (
+          <div className="flex items-start gap-3 px-4 py-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-2xl animate-in fade-in slide-in-from-top-4">
+            <HeartPulse className="w-5 h-5 text-red-600 shrink-0 mt-0.5" aria-hidden />
+            <div>
+              <p className="text-sm text-red-800 dark:text-red-200 font-semibold mb-1">
+                Medical Advisory Recommended
+              </p>
+              <p className="text-sm text-red-700 dark:text-red-300 opacity-90">
+                Our models detected a <strong>{clinicalVerdict.toLowerCase()}</strong> severity level in your scan. While our AI provides general skincare recommendations, we strongly advise consulting with a certified dermatologist or healthcare professional for a formal diagnosis and treatment plan to ensure optimal skin health.
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Image & Hotspots */}
@@ -100,14 +120,14 @@ export default function AnalysisResult({ uploadedImageUrl, scanResult }: { uploa
             {!compareMode ? (
               <div className="relative rounded-3xl overflow-hidden shadow-lg border border-slate-100 dark:border-zinc-700 bg-white dark:bg-zinc-900 group">
                 <img src={imageSrc} alt="Analyzed face" className="w-full h-auto aspect-[3/4] object-cover object-center" />
-                {showHighlights && (
+                {showHighlights && (detectedConditions.length > 0 || severityScore >= CONCERNING_SEVERITY_MIN) && (
                   <div aria-label="Skin condition highlights overlay">
-                    <Hotspot top="44%" left="22%" size="14%" color="border-red-400 bg-red-400/20 shadow-[0_0_15px_rgba(248,113,113,0.5)] animate-pulse" label="Detected area of concern" />
+                    <Hotspot top="44%" left="22%" size="14%" color="border-red-400 bg-red-400/20 shadow-[0_0_15px_rgba(248,113,113,0.5)] animate-pulse" label="Detected concern zone" />
                   </div>
                 )}
                 <div className="absolute bottom-4 left-4 right-4 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md rounded-2xl p-3 shadow-lg border border-white/50 dark:border-zinc-700">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold">Overall Quality Score</span>
+                    <span className="text-sm font-semibold">Visual Health Index</span>
                     <span className="text-xl font-bold text-primary">{skinScore}<span className="text-sm text-muted-foreground font-normal">/100</span></span>
                   </div>
                   <div className="w-full h-1.5 bg-slate-200 dark:bg-zinc-700 rounded-full mt-2 overflow-hidden" role="progressbar" aria-valuenow={skinScore} aria-valuemin={0} aria-valuemax={100} aria-label="Overall skin score">
@@ -144,24 +164,28 @@ export default function AnalysisResult({ uploadedImageUrl, scanResult }: { uploa
               <CardHeader className="pb-3 border-b border-slate-50 dark:border-zinc-800">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <CardTitle className="text-xl">Clinical Breakdown</CardTitle>
-                  <Badge variant="outline" className="bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800 font-medium px-3 py-1 capitalize" role="status">
-                    {skinType} Profile
+                  <Badge variant="outline" className={cn("font-medium px-3 py-1 capitalize", 
+                    clinicalVerdict === "Clear" ? "bg-green-50 text-green-700 border-green-200" :
+                    clinicalVerdict === "Mild" ? "bg-yellow-50 text-yellow-700 border-yellow-200" :
+                    "bg-orange-50 text-orange-700 border-orange-200"
+                  )} role="status">
+                    {clinicalVerdict} Verdict
                   </Badge>
                 </div>
               </CardHeader>
               <CardContent className="pt-4 text-muted-foreground leading-relaxed text-sm">
-                Based on the model inferences, your base profile is classified as <strong>{skinType}</strong>. 
-                Broader clinical analysis indicates a <strong>{clinicalHigh}</strong> categorization, 
-                with secondary mid-level markers pointing toward <strong>{clinicalMid}</strong>.
+                Based on our ensemble analysis, your base profile is classified as <strong className="capitalize">{skinType}</strong>. 
+                Broader clinical metrics identified <strong>{conditionsText.toLowerCase()}</strong>, 
+                with a severity index calculated at <strong>{severityScore.toFixed(2)}</strong>.
               </CardContent>
             </Card>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[
-                { icon: Droplets, color: "bg-blue-50 dark:bg-blue-950/20 text-blue-500", title: "Base Type", desc: `Classified as ${skinType} by primary model.` },
-                { icon: ShieldAlert, color: "bg-purple-50 dark:bg-purple-950/20 text-purple-500", title: "High-Level Class", desc: `Categorized as ${clinicalHigh}.` },
-                { icon: Activity, color: "bg-orange-50 dark:bg-orange-950/20 text-orange-500", title: "Mid-Level Class", desc: `Identified as ${clinicalMid}.` },
-                { icon: AlertTriangle, color: "bg-red-50 dark:bg-red-950/20 text-red-500", title: "Specific Marker", desc: `Low-confidence marker for ${clinicalLow}.` },
+                { icon: Droplets, color: "bg-blue-50 dark:bg-blue-950/20 text-blue-500", title: "Base Profile", desc: `Classified as ${skinType}.` },
+                { icon: Activity, color: "bg-purple-50 dark:bg-purple-950/20 text-purple-500", title: "Key Conditions", desc: `${conditionsText}.` },
+                { icon: ShieldAlert, color: "bg-orange-50 dark:bg-orange-950/20 text-orange-500", title: "Clinical Verdict", desc: `Rated as ${clinicalVerdict}.` },
+                { icon: AlertTriangle, color: "bg-red-50 dark:bg-red-950/20 text-red-500", title: "Severity Index", desc: `Raw score: ${severityScore.toFixed(2)}` },
               ].map((item, i) => (
                 <Card key={i} className="border-slate-100 shadow-sm bg-white/60 dark:bg-zinc-900/60 backdrop-blur-sm hover:shadow-md transition-shadow">
                   <CardContent className="p-4 flex items-start gap-3">
@@ -186,8 +210,8 @@ export default function AnalysisResult({ uploadedImageUrl, scanResult }: { uploa
                 <ul className="space-y-2 text-sm text-muted-foreground" role="list">
                   {[
                     `Adjust your routine to accommodate a ${skinType} base.`,
-                    "Monitor any changes related to the secondary markers detected.",
-                    "Ensure daily SPF use to protect the skin barrier.",
+                    needsMedicalAdvisory ? `Ensure daily SPF use is prioritized.` : `Maintain barrier health with gentle hydration.`,
+                    needsMedicalAdvisory ? `Strictly avoid harsh actives until a medical consult.` : "Introduce targeted actives as tolerance allows.",
                   ].map((item, i) => (
                     <li key={i} className="flex items-start gap-2">
                       <span className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" aria-hidden />

@@ -79,9 +79,8 @@ export default function SkinScan({ setUploadedImageUrl, setScanResult }: { setUp
       // The raw JSON from FastAPI response
       const realResult = await response.json();
 
-      // The backend returns { filename: "...", results: { ...models } }
-      // We probably only want to pass the actual results object to the UI
-      const inferenceData = realResult.results;
+      // FIXED: The new backend nests the payload under 'analysis' instead of 'results'
+      const inferenceData = realResult.analysis;
 
       // --- ADDED THIS LINE: Save to localStorage for the Recommendations page ---
       localStorage.setItem("derma_scan_result", JSON.stringify(inferenceData));
@@ -235,6 +234,7 @@ export default function SkinScan({ setUploadedImageUrl, setScanResult }: { setUp
                   if(e.dataTransfer.files?.[0]) {
                     const url = URL.createObjectURL(e.dataTransfer.files[0]);
                     setLocalImageUrl(url);
+                    setSelectedFile(e.dataTransfer.files[0]); 
                     setImageCaptured(true); 
                   }
                 }}
@@ -303,7 +303,7 @@ export default function SkinScan({ setUploadedImageUrl, setScanResult }: { setUp
                       <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-white">
                         <div className="flex items-center gap-2">
                           <CheckCircle2 className="w-5 h-5 text-green-400" aria-hidden />
-                          <span className="font-medium text-sm drop-shadow-md">Image quality: Excellent</span>
+                          <span className="font-medium text-sm drop-shadow-md">Image ready for analysis</span>
                         </div>
                         <Button size="sm" variant="ghost" className="text-white hover:bg-white/20 hover:text-white rounded-full" onClick={reset} aria-label="Retake photo">Retake</Button>
                       </div>
@@ -333,7 +333,7 @@ export default function SkinScan({ setUploadedImageUrl, setScanResult }: { setUp
                       </div>
                       <div>
                         <h3 className="text-xl font-bold text-green-800 dark:text-green-200">Analysis Complete!</h3>
-                        <p className="text-sm text-green-700 dark:text-green-300 mt-1">Your results are ready. AI confidence: 87%</p>
+                        <p className="text-sm text-green-700 dark:text-green-300 mt-1">Your clinical results are ready.</p>
                       </div>
                       <Button className="rounded-full px-8 bg-green-600 hover:bg-green-700 text-white shadow-md group mt-2" aria-label="View analysis results" onClick={() => setLocation("/result")}>
                         View Results

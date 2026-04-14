@@ -9,11 +9,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import transforms
-from torchvision.models import resnet50, vgg16
+from torchvision.models import resnet50, vgg16, efficientnet_b3
 import json
 import pandas as pd
 from pydantic import BaseModel
-from typing import Optional
 
 # --- Model Classes ---
 
@@ -130,6 +129,106 @@ class Fitzpatrick17kModel(BaseVisionModel):
                 }
             }
 
+class ConditionClassifier(BaseVisionModel):
+    def __init__(self, model_name: str, model_path: str):
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # Hardcoded from your script
+        self.class_map = {
+            0: "Acne",
+            1: "Dry",
+            2: "Normal",
+            3: "Oily",
+            4: "Pigmentation"
+        }
+        super().__init__(model_name, model_path)
+
+    def load_model(self, model_path: str) -> nn.Module:
+        model = efficientnet_b3()
+        num_ftrs = model.classifier[1].in_features
+        # Modify for 5 classes
+        model.classifier[1] = nn.Linear(num_ftrs, 5) 
+        
+        state_dict = torch.load(model_path, map_location=self.device, weights_only=True)
+        model.load_state_dict(state_dict)
+        model.to(self.device)
+        model.eval()
+        return model
+
+    def preprocess(self, image: Image.Image) -> torch.Tensor:
+        # Note: EfficientNetB3 in your script used 300x300, not 224x224
+        transform = transforms.Compose([
+            transforms.Resize((300, 300)),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ])
+        return transform(image).unsqueeze(0).to(self.device)
+
+    def predict(self, preprocessed_input: torch.Tensor) -> Dict[str, Any]:
+        with torch.no_grad():
+            outputs = self.model(preprocessed_input)
+            
+            # Use outputs[0] because your batch size is 1
+            probabilities = F.softmax(outputs[0], dim=0)
+            confidence, pred_idx = torch.max(probabilities, 0)
+            
+            pred_label = self.class_map.get(pred_idx.item(), "Unknown")
+
+            return {
+                "predicted_class": pred_label,
+                "confidence": round(confidence.item(), 4),
+                "all_probabilities": {
+                    self.class_map[i]: round(probabilities[i].item(), 4) for i in range(5)
+                }
+            }
+        
+class SeverityRegressor(BaseVisionModel):
+    def __init__(self, model_name: str, model_path: str):
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        super().__init__(model_name, model_path)
+
+    def load_model(self, model_path: str) -> nn.Module:
+        model = efficientnet_b3()
+        num_ftrs = model.classifier[1].in_features
+        
+        # Modify for Regression (Sequential block ending in 1 output)
+        model.classifier[1] = nn.Sequential(
+            nn.Linear(num_ftrs, 512),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(512, 1)
+        )
+        
+        state_dict = torch.load(model_path, map_location=self.device, weights_only=True)
+        model.load_state_dict(state_dict)
+        model.to(self.device)
+        model.eval()
+        return model
+
+    def preprocess(self, image: Image.Image) -> torch.Tensor:
+        # Same preprocessing as the classifier
+        transform = transforms.Compose([
+            transforms.Resize((300, 300)),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ])
+        return transform(image).unsqueeze(0).to(self.device)
+
+    def predict(self, preprocessed_input: torch.Tensor) -> Dict[str, Any]:
+        with torch.no_grad():
+            # Get the raw float value out of the tensor
+            severity_score = self.model(preprocessed_input).item()
+
+            # Port your clinical verdict logic into the JSON response
+            if severity_score < 0.5: status = "Clear"
+            elif severity_score < 1.5: status = "Mild"
+            elif severity_score < 2.5: status = "Moderate"
+            else: status = "Severe"
+
+            return {
+                "severity_score": round(severity_score, 4),
+                "clinical_verdict": status
+            }
+
 # --- The Updated Memory-Safe Pipeline ---
 
 class MultiModelPipeline:
@@ -181,26 +280,36 @@ async def load_ml_models():
             model_path="best_skin_model_weights.pth"
         )
 
-        fp17k_high = Fitzpatrick17kModel(
-            model_name="Fitzpatrick17k_High",
-            model_path="model_path_10_high_random_holdout.pth",
-            label_map_path="label_map_high.json"
+        # fp17k_high = Fitzpatrick17kModel(
+        #     model_name="Fitzpatrick17k_High",
+        #     model_path="model_path_10_high_random_holdout.pth",
+        #     label_map_path="label_map_high.json"
+        # )
+
+        # fp17k_mid = Fitzpatrick17kModel(
+        #     model_name="Fitzpatrick17k_Mid",
+        #     model_path="model_path_10_mid_random_holdout.pth",
+        #     label_map_path="label_map_mid.json"
+        # )
+
+        # fp17k_low = Fitzpatrick17kModel(
+        #     model_name="Fitzpatrick17k_low",
+        #     model_path="model_path_10_low_random_holdout.pth",
+        #     label_map_path="label_map_low.json"
+        # )
+
+        condition_model = ConditionClassifier(
+            model_name="Condition_Classifier_EfficientNet_b3",
+            model_path="best_skin_model.pth"
         )
 
-        fp17k_mid = Fitzpatrick17kModel(
-            model_name="Fitzpatrick17k_Mid",
-            model_path="model_path_10_mid_random_holdout.pth",
-            label_map_path="label_map_mid.json"
-        )
-
-        fp17k_low = Fitzpatrick17kModel(
-            model_name="Fitzpatrick17k_low",
-            model_path="model_path_10_low_random_holdout.pth",
-            label_map_path="label_map_low.json"
+        severity_model = SeverityRegressor(
+            model_name="Severity_Regressor_EfficientNet_b3",
+            model_path="best_severity_model.pth"
         )
         
         # Add more models to this list as you build them
-        pipeline = MultiModelPipeline(models=[skin_model, fp17k_high, fp17k_mid, fp17k_low])
+        pipeline = MultiModelPipeline(models=[skin_model, condition_model, severity_model])
         logging.info("Models loaded successfully into memory.")
         
     except Exception as e:
@@ -228,11 +337,49 @@ async def predict_image(file: UploadFile = File(...)):
     try:
         contents = await file.read()
         image = Image.open(io.BytesIO(contents)).convert("RGB")
-        inference_results = pipeline.process_pil_image(image)
+        raw_results = pipeline.process_pil_image(image)
         
+        # --- ENSEMBLE AGGREGATION LOGIC ---
+        
+        # Extract individual model data
+        resnet_data = raw_results.get("ResNet_SkinType", {}).get("data", {})
+        effnet_data = raw_results.get("Condition_Classifier_EfficientNet_b3", {}).get("data", {})
+        severity_data = raw_results.get("Severity_Regressor_EfficientNet_b3", {}).get("data", {})
+
+        # Skin Type Conflict Resolution
+        base_skin_type = resnet_data.get("predicted_class", "unknown").lower()
+        effnet_top_class = effnet_data.get("predicted_class", "unknown").lower()
+        
+        final_skin_type = base_skin_type
+        # If effnet predicts a valid skin type that CONFLICTS with ResNet, call it combination
+        if effnet_top_class in ["dry", "normal", "oily"] and effnet_top_class != base_skin_type:
+            final_skin_type = "combination"
+
+        # Extract Skin Conditions via Probability Threshold
+        detected_conditions = []
+        effnet_probs = effnet_data.get("all_probabilities", {})
+        
+        # Set threshold (if the model is >threshold sure, flag it)
+        CONDITION_THRESHOLD = 0.30 
+        
+        if effnet_probs.get("Acne", 0) > CONDITION_THRESHOLD:
+            detected_conditions.append("acne")
+        if effnet_probs.get("Pigmentation", 0) > CONDITION_THRESHOLD:
+            detected_conditions.append("pigmentation")
+
+        # 3. Construct Unified Response
+        aggregated_response = {
+            "final_skin_type": final_skin_type,
+            "detected_conditions": detected_conditions,
+            "severity_score": severity_data.get("severity_score"),
+            "clinical_verdict": severity_data.get("clinical_verdict"),
+            # Include raw data so frontend can still access individual confidences if needed
+            "raw_model_data": raw_results 
+        }
+
         return {
             "filename": file.filename,
-            "results": inference_results
+            "analysis": aggregated_response
         }
         
     except Exception as e:
@@ -288,6 +435,11 @@ async def recommend_products(req: RecommendationRequest):
             filtered_df = filtered_df[filtered_df['Skin type'].str.lower().str.contains(pattern)]
 
         # --- Format Response ---
+
+        # ADD THIS LINE: Replace all remaining NaNs in the entire dataframe with empty strings
+        # so the JSON encoder doesn't crash.
+        filtered_df = filtered_df.fillna("")
+        
         # Convert the resulting DataFrame into a list of dictionaries (JSON friendly)
         # orient="records" creates [{col1: val1, col2: val2}, ...]
         results = filtered_df.to_dict(orient="records")
