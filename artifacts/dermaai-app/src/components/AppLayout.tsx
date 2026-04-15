@@ -41,10 +41,17 @@ interface AppLayoutProps {
 
 export function AppLayout({ children, activeTab }: AppLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [dark, setDark] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [, setLocation] = useLocation();
   let toastCounter = 0;
+
+  // --- FIXED: Initialize dark mode from localStorage ---
+  const [dark, setDark] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("derma_theme") === "dark";
+    }
+    return false;
+  });
 
   const addToast = (message: string, type: ToastType = "info") => {
     const id = ++toastCounter + Date.now();
@@ -54,18 +61,31 @@ export function AppLayout({ children, activeTab }: AppLayoutProps) {
 
   const removeToast = (id: number) => setToasts(prev => prev.filter(t => t.id !== id));
 
+  // --- FIXED: Save dark mode preference to localStorage whenever it changes ---
   useEffect(() => {
     const root = document.documentElement;
-    if (dark) root.classList.add("dark");
-    else root.classList.remove("dark");
+    if (dark) {
+      root.classList.add("dark");
+      localStorage.setItem("derma_theme", "dark");
+    } else {
+      root.classList.remove("dark");
+      localStorage.setItem("derma_theme", "light");
+    }
   }, [dark]);
 
   const navLinks = [
     { id: "dashboard", label: "Dashboard", icon: Home, href: "/dashboard" },
     { id: "scan", label: "Skin Scan", icon: Camera, href: "/scan" },
     { id: "profile", label: "Questionnaire", icon: User, href: "/questionnaire" },
-    { id: "recommendation", label: "Routine", icon: Sparkles, href: "/recommendation" }
+    { id: "recommendation", label: "Products", icon: Sparkles, href: "/recommendation" }
   ];
+
+  const handleLogout = () => {
+    localStorage.removeItem("derma_user");
+    sessionStorage.removeItem("derma_past_scan"); 
+    sessionStorage.removeItem("derma_scan_result"); 
+    setLocation("/");
+  };
 
   return (
     <ToastContext.Provider value={{ addToast }}>
@@ -75,7 +95,7 @@ export function AppLayout({ children, activeTab }: AppLayoutProps) {
         {/* Navbar */}
         <header className={cn("sticky top-0 z-50 w-full border-b backdrop-blur-xl", dark ? "bg-zinc-950/90 border-zinc-800" : "bg-background/80 border-border/40")}>
           <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-2 cursor-pointer">
+            <Link href="/dashboard" className="flex items-center gap-2 cursor-pointer">
               <div className="bg-primary/10 p-2 rounded-xl text-primary">
                 <Sparkles className="w-5 h-5" />
               </div>
@@ -110,7 +130,7 @@ export function AppLayout({ children, activeTab }: AppLayoutProps) {
               >
                 <Bell className="w-5 h-5" />
               </button>
-              <button aria-label="Log out" onClick={() => setLocation("/")} className="p-2 text-muted-foreground hover:text-primary transition-colors rounded-full hover:bg-primary/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+              <button aria-label="Log out" onClick={handleLogout} className="p-2 text-muted-foreground hover:text-primary transition-colors rounded-full hover:bg-primary/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                 <LogOut className="w-5 h-5" />
               </button>
             </div>
@@ -140,7 +160,7 @@ export function AppLayout({ children, activeTab }: AppLayoutProps) {
                   {dark ? "Light Mode" : "Dark Mode"}
                 </button>
               </div>
-              <button onClick={() => { setMobileMenuOpen(false); setLocation("/"); }} className="flex items-center gap-3 p-4 rounded-2xl text-base font-medium text-destructive hover:bg-destructive/10 transition-all mt-auto w-full">
+              <button onClick={() => { setMobileMenuOpen(false); handleLogout(); }} className="flex items-center gap-3 p-4 rounded-2xl text-base font-medium text-destructive hover:bg-destructive/10 transition-all mt-auto w-full">
                 <LogOut className="w-5 h-5" />
                 Log Out
               </button>

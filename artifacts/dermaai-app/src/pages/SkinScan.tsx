@@ -1,73 +1,126 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { AppLayout, useDermaToast } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Camera, UploadCloud, RefreshCw, AlertCircle, WifiOff, ImageOff, AlertTriangle, CheckCircle2, ArrowRight } from "lucide-react";
+import { Camera, Upload, X, ShieldCheck, Loader2, Focus, ScanFace, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocation } from "wouter";
-import { mockResult } from "@/lib/mockData";
 
-type ErrorType = "too-large" | "bad-format" | "no-face" | "blurry" | "network" | null;
-type ScanState = "idle" | "analyzing" | "done";
+export default function SkinScan() {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanStep, setScanStep] = useState(0);
+  
+  // --- Camera State ---
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
-const STEPS = [
-  "Uploading image...",
-  "Processing facial data...",
-  "Detecting acne markers...",
-  "Generating personalized results...",
-];
-
-export default function SkinScan({ setUploadedImageUrl, setScanResult }: { setUploadedImageUrl: (url: string|null) => void, setScanResult: (res: any) => void }) {
-  const [isDragging, setIsDragging] = useState(false);
-  const [scanState, setScanState] = useState<ScanState>("idle");
-  const [imageCaptured, setImageCaptured] = useState(false);
-  const [localImageUrl, setLocalImageUrl] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null); // Add this!
-  const [errorType, setErrorType] = useState<ErrorType>(null);
-  const [currentStep, setCurrentStep] = useState(0);
-  const [stepDone, setStepDone] = useState<boolean[]>([false, false, false, false]);
   const { addToast } = useDermaToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [, setLocation] = useLocation();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // const runAnalysis = () => {
-  //   setScanState("analyzing");
-  //   setCurrentStep(0);
-  //   setStepDone([false, false, false, false]);
+  // Clean up camera stream if component unmounts
+  useEffect(() => {
+    return () => stopCamera();
+  }, []);
 
-  //   STEPS.forEach((_, i) => {
-  //     setTimeout(() => {
-  //       setCurrentStep(i);
-  //       setStepDone(prev => {
-  //         const n = [...prev];
-  //         if (i > 0) n[i - 1] = true;
-  //         return n;
-  //       });
-  //     }, i * 700);
-  //   });
+  // --- FIXED: Attach stream AFTER the video element renders ---
+  useEffect(() => {
+    if (isCameraActive && videoRef.current && mediaStream) {
+      videoRef.current.srcObject = mediaStream;
+    }
+  }, [isCameraActive, mediaStream]);
 
-  //   setTimeout(() => {
-  //     setStepDone([true, true, true, true]);
-  //     setScanState("done");
-  //     addToast("Analysis complete! Results are ready.", "success");
-  //     setScanResult(mockResult);
-  //     if(localImageUrl) setUploadedImageUrl(localImageUrl);
-  //   }, STEPS.length * 700 + 400);
-  // };
+  // --- Camera Functions ---
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } } 
+      });
+      setMediaStream(stream);
+      setIsCameraActive(true);
+    } catch (err) {
+      console.error("Camera error:", err);
+      addToast("Could not access camera. Please check your browser permissions.", "error");
+    }
+  };
 
+  const stopCamera = () => {
+    if (mediaStream) {
+      mediaStream.getTracks().forEach(track => track.stop());
+      setMediaStream(null);
+    }
+    setIsCameraActive(false);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current) {
+      const video = videoRef.current;
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        // Handle mirroring so the captured image matches what the user saw
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const file = new File([blob], `capture_${Date.now()}.jpg`, { type: "image/jpeg" });
+            handleFileSelect(file);
+            stopCamera();
+          }
+        }, "image/jpeg", 0.9);
+      }
+    }
+  };
+
+  // --- File Handling ---
+  const handleFileSelect = (file: File) => {
+    if (file.size > 10 * 1024 * 1024) {
+      addToast("Image must be smaller than 10MB", "error");
+      return;
+    }
+    setSelectedFile(file);
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewUrl(objectUrl);
+  };
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      handleFileSelect(e.target.files[0]);
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setScanStep(0);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // --- API Analysis ---
   const runAnalysis = async () => {
     if (!selectedFile) return;
 
-    setScanState("analyzing");
-    setCurrentStep(0); 
+    setIsScanning(true);
+    setScanStep(1); // Uploading...
 
-    // MUST MATCH BACKEND: Use "file" as the key
     const formData = new FormData();
-    formData.append("file", selectedFile); 
+    formData.append("file", selectedFile);
 
     try {
-      // MUST MATCH BACKEND: Use the /predict/ endpoint
-      const response = await fetch("http://127.0.0.1:8000/predict/", { 
+      const response = await fetch("http://127.0.0.1:8000/predict/", {
         method: "POST",
         body: formData,
       });
@@ -76,288 +129,168 @@ export default function SkinScan({ setUploadedImageUrl, setScanResult }: { setUp
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      // The raw JSON from FastAPI response
-      const realResult = await response.json();
-
-      // FIXED: The new backend nests the payload under 'analysis' instead of 'results'
-      const inferenceData = realResult.analysis;
-
-      // --- ADDED THIS LINE: Save to localStorage for the Recommendations page ---
-      localStorage.setItem("derma_scan_result", JSON.stringify(inferenceData));
-      // ------------------------------------------------------------------------
-
-      setStepDone([true, true, true, true]);
-      setScanState("done");
-      addToast("Analysis complete! Results are ready.", "success");
+      setScanStep(2); // Analyzing...
+      const data = await response.json();
       
-      // Pass the inference data to your result page state
-      setScanResult(inferenceData); 
-      
-      if (localImageUrl) setUploadedImageUrl(localImageUrl);
+      setTimeout(() => {
+        setScanStep(3); // Finishing...
+        
+        setTimeout(() => {
+          const inferenceData = data.analysis;
+          sessionStorage.setItem("derma_live_scan", JSON.stringify(inferenceData));
+          sessionStorage.removeItem("derma_past_scan");
+
+          addToast("Analysis complete!", "success");
+          setIsScanning(false);
+          setLocation("/result"); 
+        }, 800);
+      }, 1500);
 
     } catch (error) {
-      console.error("Failed to analyze skin:", error);
-      triggerError("network"); 
-    }
-  };
-
-  const triggerError = (type: ErrorType) => {
-    setErrorType(type);
-    setScanState("idle");
-    setImageCaptured(false);
-    if (type === "too-large") addToast("File too large. Maximum 10MB allowed.", "error");
-    if (type === "bad-format") addToast("Unsupported format. Please use JPEG or PNG.", "error");
-    if (type === "no-face") addToast("No face detected. Please try a clearer photo.", "error");
-    if (type === "blurry") addToast("Image is too blurry. Please retake in better lighting.", "error");
-  };
-
-  const reset = () => {
-    setImageCaptured(false);
-    setLocalImageUrl(null);
-    setScanState("idle");
-    setErrorType(null);
-  };
-
-  // const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  //   const file = e.target.files?.[0];
-  //   if (file) {
-  //     const url = URL.createObjectURL(file);
-  //     setLocalImageUrl(url);
-  //     setImageCaptured(true);
-  //   }
-  // };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setLocalImageUrl(url);
-      setSelectedFile(file); // Save the actual file object
-      setImageCaptured(true);
+      console.error("Analysis failed:", error);
+      addToast("Failed to reach the analysis engine. Ensure backend is running.", "error");
+      setIsScanning(false);
+      setScanStep(0);
     }
   };
 
   return (
     <AppLayout activeTab="scan">
-      <div className="max-w-2xl mx-auto w-full space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">Scan Your Skin</h1>
-          <p className="text-muted-foreground">Take a clear, makeup-free photo in good lighting for the most accurate analysis.</p>
+      <div className="space-y-6 max-w-3xl mx-auto w-full pb-12">
+        
+        <div className="text-center space-y-2 mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-primary/10 text-primary mb-2">
+            <ScanFace className="w-6 h-6" />
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight">AI Skin Analysis</h1>
+          <p className="text-muted-foreground text-sm max-w-md mx-auto">
+            Take a clear, well-lit photo of your face without makeup or glasses for the most accurate clinical evaluation.
+          </p>
         </div>
 
-        {/* Error States */}
-        {errorType === "too-large" && (
-          <Card className="border-red-200 bg-red-50 dark:bg-red-950/20 animate-in fade-in">
-            <CardContent className="p-5 flex items-start gap-4">
-              <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" aria-hidden />
-              <div className="flex-1">
-                <p className="font-semibold text-red-800 dark:text-red-200">File too large</p>
-                <p className="text-sm text-red-700 dark:text-red-300 mt-1">Your file exceeds the 10MB limit. Please compress your image and try again.</p>
-                <Button size="sm" variant="outline" className="mt-3 border-red-300 text-red-700 hover:bg-red-100 rounded-full" onClick={reset}>Try Again</Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        {errorType === "bad-format" && (
-          <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 animate-in fade-in">
-            <CardContent className="p-5 flex items-start gap-4">
-              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" aria-hidden />
-              <div className="flex-1">
-                <p className="font-semibold text-amber-800 dark:text-amber-200">Unsupported format</p>
-                <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">Please upload a JPEG or PNG file. WEBP, HEIC, and BMP are not yet supported.</p>
-                <Button size="sm" variant="outline" className="mt-3 border-amber-300 text-amber-700 hover:bg-amber-100 rounded-full" onClick={reset}>Try Again</Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        {errorType === "no-face" && (
-          <Card className="border-slate-200 bg-slate-50 dark:bg-zinc-800/50 animate-in fade-in">
-            <CardContent className="p-5 flex flex-col items-center text-center gap-4 py-8">
-              <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-zinc-700 flex items-center justify-center">
-                <ImageOff className="w-8 h-8 text-muted-foreground" aria-hidden />
-              </div>
-              <div>
-                <p className="font-semibold text-lg">No face detected</p>
-                <p className="text-sm text-muted-foreground mt-1 max-w-xs mx-auto">Make sure your face is centered, well-lit, and free of obstructions like sunglasses or masks.</p>
-              </div>
-              <Button className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground" onClick={reset}>
-                <Camera className="w-4 h-4 mr-2" aria-hidden />
-                Try Again
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-        {errorType === "blurry" && (
-          <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 animate-in fade-in">
-            <CardContent className="p-5 flex items-start gap-4">
-              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" aria-hidden />
-              <div className="flex-1">
-                <p className="font-semibold text-amber-800 dark:text-amber-200">Image too blurry</p>
-                <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">Ensure you are in a well-lit area and hold the camera steady. Avoid backlit environments.</p>
-                <Button size="sm" variant="outline" className="mt-3 border-amber-300 text-amber-700 hover:bg-amber-100 rounded-full" onClick={reset}>Retake Photo</Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        {errorType === "network" && (
-          <Card className="border-slate-200 bg-white dark:bg-zinc-900 animate-in fade-in">
-            <CardContent className="p-6 flex flex-col items-center text-center gap-4">
-              <WifiOff className="w-10 h-10 text-muted-foreground" aria-hidden />
-              <div>
-                <p className="font-semibold text-lg">Network Error</p>
-                <p className="text-sm text-muted-foreground mt-1">Could not connect to the analysis server. Check your connection and retry.</p>
-              </div>
-              <Button className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground" onClick={() => { setErrorType(null); runAnalysis(); }}>
-                <RefreshCw className="w-4 h-4 mr-2" aria-hidden />
-                Retry
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Main scan area (only show when no active error) */}
-        {!errorType && (
-          <>
-            {!imageCaptured ? (
-              <Card
-                role="region"
-                aria-label="Image upload area"
-                className={cn("border-2 border-dashed transition-all duration-200 overflow-hidden bg-white/50 dark:bg-zinc-900/50 backdrop-blur-sm",
-                  isDragging ? "border-primary bg-primary/5" : "border-slate-200 hover:border-primary/50 hover:bg-slate-50/50"
-                )}
-                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={(e) => { 
-                  e.preventDefault(); 
-                  setIsDragging(false); 
-                  if(e.dataTransfer.files?.[0]) {
-                    const url = URL.createObjectURL(e.dataTransfer.files[0]);
-                    setLocalImageUrl(url);
-                    setSelectedFile(e.dataTransfer.files[0]); 
-                    setImageCaptured(true); 
-                  }
-                }}
-              >
-                <CardContent className="p-12 flex flex-col items-center justify-center text-center min-h-[360px]">
-                  <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
-                  <div className="flex flex-col items-center space-y-6">
-                    <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner" aria-hidden>
-                      <Camera className="w-8 h-8" />
-                    </div>
-                    <div className="space-y-2">
-                      <h3 className="text-xl font-semibold">Take a photo or upload</h3>
-                      <p className="text-sm text-muted-foreground max-w-sm mx-auto">Drag and drop your image here, or click to browse. JPEG, PNG up to 10MB.</p>
-                    </div>
-                    <div className="flex flex-col sm:flex-row items-center gap-4 w-full justify-center pt-2">
-                      <Button className="rounded-full px-8 shadow-md bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto" onClick={() => fileInputRef.current?.click()} aria-label="Open camera">
-                        <Camera className="w-4 h-4 mr-2" aria-hidden />
-                        Open Camera
-                      </Button>
-                      <Button variant="outline" className="rounded-full px-8 bg-white dark:bg-zinc-800 w-full sm:w-auto" onClick={() => fileInputRef.current?.click()} aria-label="Browse files">
-                        <UploadCloud className="w-4 h-4 mr-2 text-muted-foreground" aria-hidden />
-                        Browse Files
-                      </Button>
-                    </div>
+        {/* --- In-App Camera Overlay --- */}
+        {isCameraActive && (
+          <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-in fade-in zoom-in-95 duration-200">
+            <div className="absolute top-0 left-0 w-full p-6 flex justify-between items-center z-10 bg-gradient-to-b from-black/80 to-transparent">
+              <h3 className="text-white font-semibold">Align your face</h3>
+              <button onClick={stopCamera} className="w-10 h-10 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="relative flex-1 flex items-center justify-center overflow-hidden">
+              <video 
+                ref={videoRef} 
+                autoPlay 
+                playsInline 
+                muted 
+                className="w-full h-full object-cover"
+                style={{ transform: "scaleX(-1)" }} // Mirror effect for front camera
+              />
+              
+              {/* Target Guide Overlay */}
+              <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                <div className="w-[70%] max-w-sm aspect-[3/4] border-2 border-dashed border-white/50 rounded-[3rem] relative">
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center opacity-50">
+                    <Focus className="w-12 h-12 text-white mb-2" />
                   </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <>
-                {/* Analysis loading */}
-                {scanState === "analyzing" && (
-                  <Card className="border-slate-100 shadow-sm overflow-hidden bg-white dark:bg-zinc-900 animate-in fade-in">
-                    <CardContent className="p-8 flex flex-col items-center text-center space-y-8">
-                      <div className="relative">
-                        <div className="w-24 h-24 rounded-full border-4 border-primary/20 flex items-center justify-center">
-                          <RefreshCw className="w-10 h-10 text-primary animate-spin" aria-hidden />
-                        </div>
-                        <div className="absolute inset-0 rounded-full border-2 border-primary animate-ping opacity-10" aria-hidden />
-                      </div>
-                      <div className="w-full max-w-xs space-y-3" role="status" aria-live="polite" aria-label="Analysis progress">
-                        {STEPS.map((step, i) => (
-                          <div key={i} className={cn("flex items-center gap-3 text-sm transition-all duration-300",
-                            i < currentStep ? "text-muted-foreground" : i === currentStep ? "text-foreground font-medium" : "text-muted-foreground/40"
-                          )}>
-                            {stepDone[i] ? (
-                              <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" aria-hidden />
-                            ) : i === currentStep ? (
-                              <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin shrink-0" aria-hidden />
-                            ) : (
-                              <div className="w-4 h-4 rounded-full border-2 border-muted shrink-0" aria-hidden />
-                            )}
-                            {step}
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+                </div>
+              </div>
+            </div>
 
-                {/* Image preview + analyze */}
-                {scanState === "idle" && (
-                  <Card className="border-slate-100 shadow-sm overflow-hidden bg-white dark:bg-zinc-900 animate-in zoom-in-95 duration-500">
-                    <div className="relative aspect-[4/3] bg-slate-100 dark:bg-zinc-800 w-full overflow-hidden">
-                      <img src={localImageUrl || ""} alt="Captured scan preview" className="w-full h-full object-cover object-center" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" aria-hidden />
-                      <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-white">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="w-5 h-5 text-green-400" aria-hidden />
-                          <span className="font-medium text-sm drop-shadow-md">Image ready for analysis</span>
+            <div className="p-8 bg-black flex justify-center items-center pb-safe">
+              <button 
+                onClick={capturePhoto}
+                className="w-20 h-20 rounded-full border-4 border-white/50 flex items-center justify-center p-1 active:scale-95 transition-transform"
+              >
+                <div className="w-full h-full bg-white rounded-full" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        <Card className="border-slate-100 dark:border-zinc-800 shadow-xl overflow-hidden bg-white/50 dark:bg-zinc-900/50 backdrop-blur-xl animate-in fade-in slide-in-from-bottom-8 duration-700">
+          <CardContent className="p-6 sm:p-8">
+            {!previewUrl ? (
+              <div className="flex flex-col items-center justify-center py-12 px-4 border-2 border-dashed border-slate-200 dark:border-zinc-700 rounded-3xl bg-slate-50/50 dark:bg-zinc-800/50">
+                <div className="w-20 h-20 rounded-full bg-white dark:bg-zinc-800 shadow-sm flex items-center justify-center mb-6">
+                  <Camera className="w-8 h-8 text-primary" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">Upload your photo</h3>
+                <p className="text-sm text-muted-foreground text-center mb-8 max-w-xs">
+                  JPEG or PNG up to 10MB. Ensure good lighting and a neutral expression.
+                </p>
+                
+                <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs">
+                  <Button onClick={startCamera} className="w-full rounded-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md gap-2">
+                    <Camera className="w-4 h-4" />
+                    Use Camera
+                  </Button>
+                  <Button onClick={handleUploadClick} variant="outline" className="w-full rounded-full h-12 gap-2 border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-800">
+                    <Upload className="w-4 h-4" />
+                    Browse Files
+                  </Button>
+                </div>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileChange} 
+                  accept="image/jpeg, image/png, image/webp" 
+                  className="hidden" 
+                />
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="relative aspect-[3/4] sm:aspect-[4/3] rounded-3xl overflow-hidden bg-zinc-900 shadow-inner">
+                  <img src={previewUrl} alt="Preview" className="w-full h-full object-cover opacity-90" />
+                  
+                  {!isScanning && (
+                    <button onClick={clearSelection} className="absolute top-4 right-4 w-10 h-10 bg-black/40 hover:bg-black/60 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-colors" aria-label="Remove image">
+                      <X className="w-5 h-5" />
+                    </button>
+                  )}
+
+                  {isScanning && (
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-white p-6">
+                      <div className="relative mb-6">
+                        <div className="absolute inset-0 border-4 border-t-primary border-primary/20 rounded-full animate-spin" />
+                        <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center backdrop-blur-md">
+                          <ShieldCheck className="w-6 h-6 text-primary animate-pulse" />
                         </div>
-                        <Button size="sm" variant="ghost" className="text-white hover:bg-white/20 hover:text-white rounded-full" onClick={reset} aria-label="Retake photo">Retake</Button>
+                      </div>
+                      <h3 className="text-xl font-bold mb-2">Analyzing Profile</h3>
+                      <div className="flex flex-col gap-2 w-full max-w-xs text-sm font-medium text-white/70">
+                        <div className="flex items-center gap-3">
+                          {scanStep >= 1 ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <Loader2 className="w-4 h-4 animate-spin opacity-50" />}
+                          <span className={scanStep >= 1 ? "text-white" : ""}>Uploading secure image...</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {scanStep >= 2 ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : scanStep === 1 ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : <div className="w-4 h-4" />}
+                          <span className={scanStep >= 2 ? "text-white" : scanStep === 1 ? "text-white" : ""}>Running clinical models...</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {scanStep >= 3 ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : scanStep === 2 ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : <div className="w-4 h-4" />}
+                          <span className={scanStep >= 3 ? "text-white" : scanStep === 2 ? "text-white" : ""}>Generating action plan...</span>
+                        </div>
                       </div>
                     </div>
-                    <CardContent className="p-6 bg-white dark:bg-zinc-900">
-                      <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3 mb-6" role="alert">
-                        <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" aria-hidden />
-                        <div className="text-sm text-amber-800 dark:text-amber-200">
-                          <p className="font-medium mb-1">Make sure you are makeup-free</p>
-                          <p className="opacity-80">Makeup can obscure key skin markers. For best results, cleanse your face before scanning.</p>
-                        </div>
-                      </div>
-                      <Button className="w-full rounded-full h-14 text-base font-semibold shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground group" onClick={runAnalysis} aria-label="Start skin analysis">
-                        Analyze My Skin
-                        <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" aria-hidden />
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )}
+                  )}
+                </div>
 
-                {/* Done state */}
-                {scanState === "done" && (
-                  <Card className="border-green-200 bg-green-50 dark:bg-green-950/20 animate-in fade-in zoom-in-95 duration-500">
-                    <CardContent className="p-8 flex flex-col items-center text-center gap-4">
-                      <div className="w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center" aria-hidden>
-                        <CheckCircle2 className="w-10 h-10 text-green-600" />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-bold text-green-800 dark:text-green-200">Analysis Complete!</h3>
-                        <p className="text-sm text-green-700 dark:text-green-300 mt-1">Your clinical results are ready.</p>
-                      </div>
-                      <Button className="rounded-full px-8 bg-green-600 hover:bg-green-700 text-white shadow-md group mt-2" aria-label="View analysis results" onClick={() => setLocation("/result")}>
-                        View Results
-                        <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" aria-hidden />
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )}
-              </>
-            )}
-
-            {/* Simulated error triggers (demo controls) */}
-            {!imageCaptured && (
-              <div className="flex flex-wrap gap-2 justify-center pt-2">
-                <p className="w-full text-center text-xs text-muted-foreground">Simulate error states:</p>
-                {([["too-large", "File Too Large"], ["bad-format", "Bad Format"], ["no-face", "No Face"], ["blurry", "Blurry"], ["network", "Network Error"]] as [ErrorType, string][]).map(([type, label]) => (
-                  <Button key={type} variant="outline" size="sm" className="rounded-full text-xs h-8 border-dashed" onClick={() => triggerError(type)} aria-label={`Simulate ${label} error`}>
-                    {label}
+                {!isScanning && (
+                  <Button onClick={runAnalysis} className="w-full rounded-full h-14 text-base font-medium shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90 text-primary-foreground">
+                    Analyze My Skin
                   </Button>
-                ))}
+                )}
               </div>
             )}
-          </>
-        )}
+          </CardContent>
+        </Card>
+
+        <div className="flex items-center justify-center gap-2 mt-6 text-xs text-muted-foreground font-medium">
+          <ShieldCheck className="w-4 h-4 text-green-500" />
+          <span>Your photos are processed securely and never shared.</span>
+        </div>
       </div>
     </AppLayout>
   );
