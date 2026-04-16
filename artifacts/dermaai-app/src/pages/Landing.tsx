@@ -1,8 +1,23 @@
+import { useEffect } from "react";
 import { Sparkles, ArrowRight, ShieldCheck, Microscope, HeartPulse, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 export default function Landing() {
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem("derma_user");
+    if (savedUser) {
+      setLocation("/dashboard");
+    }
+  }, [setLocation]);
+
+  const handleStartScan = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setLocation("/signup");
+  };
+
   return (
     <div className="min-h-screen bg-background font-sans text-foreground selection:bg-primary/20 selection:text-primary flex flex-col overflow-hidden">
       {/* Navigation */}
@@ -28,12 +43,12 @@ export default function Landing() {
         {/* Background Image / Decorative */}
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
            <img 
-              src="https://images.unsplash.com/photo-1515377905703-c4788e51af15?q=80&w=2070&auto=format&fit=crop" 
-              alt="Soft elegant background" 
-              className="w-full h-full object-cover opacity-10 mix-blend-multiply"
-            />
-            {/* Soft gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/80 to-background"></div>
+             src="https://images.unsplash.com/photo-1515377905703-c4788e51af15?q=80&w=2070&auto=format&fit=crop" 
+             alt="Soft elegant background" 
+             className="w-full h-full object-cover opacity-10 mix-blend-multiply"
+           />
+           {/* Soft gradient overlay */}
+           <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/80 to-background"></div>
         </div>
 
         <div className="relative z-10 max-w-3xl mx-auto flex flex-col items-center animate-in fade-in slide-in-from-bottom-8 duration-1000">
@@ -48,23 +63,27 @@ export default function Landing() {
           </h1>
           
           <p className="text-lg md:text-xl text-slate-600 mb-10 max-w-2xl leading-relaxed">
-            Your personal digital dermatologist. We analyze your unique skin profile across all tones and types to provide clinical-grade insights and personalized routines.
+            Your personal digital dermatologist. We analyze your unique skin profile across all tones and types to provide clinical-grade insights and personalized product recommendations.
           </p>
           
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
-            <Link href="/scan" className="w-full sm:w-auto rounded-full px-8 h-14 text-base shadow-xl shadow-primary/20 hover:shadow-2xl hover:shadow-primary/30 transition-all group bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center font-medium">
+            <button 
+              onClick={handleStartScan}
+              className="w-full sm:w-auto rounded-full px-8 h-14 text-base shadow-xl shadow-primary/20 hover:shadow-2xl hover:shadow-primary/30 transition-all group bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center font-medium"
+            >
               Start Your Free Scan
               <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-            </Link>
-            <Link href="/signup" className="w-full sm:w-auto flex items-center justify-center rounded-full px-8 h-14 text-base border border-slate-200 bg-white/50 backdrop-blur-md hover:bg-white text-slate-700 font-medium">
+            </button>
+            
+            <a href="#how-it-works" className="w-full sm:w-auto flex items-center justify-center rounded-full px-8 h-14 text-base border border-slate-200 bg-white/50 backdrop-blur-md hover:bg-white text-slate-700 font-medium">
               How it works
-            </Link>
+            </a>
           </div>
         </div>
       </section>
 
       {/* How it Works */}
-      <section className="relative z-10 py-24 px-6 bg-white/40 backdrop-blur-3xl border-y border-white/40">
+      <section id="how-it-works" className="relative z-10 py-24 px-6 bg-white/40 backdrop-blur-3xl border-y border-white/40">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-slate-900 mb-4">Clinical precision in three steps</h2>
@@ -88,8 +107,8 @@ export default function Landing() {
               },
               {
                 icon: HeartPulse,
-                title: "3. Personalized Routine",
-                desc: "Get a morning and night protocol scientifically matched to your skin's exact needs."
+                title: "3. Personalized Products",
+                desc: "Get curated skincare formulas scientifically matched to your skin's exact needs."
               }
             ].map((step, i) => (
               <div key={i} className="relative flex flex-col items-center text-center p-6 rounded-3xl bg-white/60 shadow-sm border border-white/50 hover:shadow-md transition-all">
@@ -110,7 +129,8 @@ export default function Landing() {
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-primary" />
             <span className="font-medium text-slate-800">DermaAI</span>
-            <span>© 2024</span>
+            {/* CHANGED: Year updated to 2026 */}
+            <span>© 2026</span>
           </div>
           <div className="flex items-center gap-6">
             <a href="#" className="hover:text-primary transition-colors">Privacy</a>

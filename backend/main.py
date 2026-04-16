@@ -13,6 +13,9 @@ from torchvision.models import resnet50, vgg16, efficientnet_b3
 import json
 import pandas as pd
 from pydantic import BaseModel
+import os
+import uuid
+from fastapi.staticfiles import StaticFiles
 
 # --- Model Classes ---
 
@@ -264,6 +267,51 @@ pipeline = None
 # Global variable to hold recommendation products
 df = None
 
+# --- Quick JSON Database for Users ---
+DB_FILE = "users_db.json"
+users_db = {}
+
+# Load existing users on startup
+if os.path.exists(DB_FILE):
+    with open(DB_FILE, "r") as f:
+        users_db = json.load(f)
+
+def save_users():
+    with open(DB_FILE, "w") as f:
+        json.dump(users_db, f)
+
+# --- Image Upload Setup ---
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
+# --- Authentication Models & Endpoints ---
+class SignupRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+    skin_concern: str
+    heritage: str
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+# --- User Profile & History Endpoints ---
+
+class ScanRecord(BaseModel):
+    email: str
+    date: str
+    score: int
+    acneLevel: str
+    hydration: str
+    trend: str
+    image_url: str
+
+class QuestionnaireData(BaseModel):
+    email: str
+    answers: dict
+
 @app.on_event("startup")
 async def load_ml_models():
     """
@@ -336,24 +384,45 @@ async def predict_image(file: UploadFile = File(...)):
 
     try:
         contents = await file.read()
+
+        # --- NEW: Save the file permanently to the disk ---
+        file_ext = file.filename.split(".")[-1]
+        unique_filename = f"{uuid.uuid4().hex}.{file_ext}"
+        file_path = os.path.join(UPLOAD_DIR, unique_filename)
+
+        with open(file_path, "wb") as f:
+            f.write(contents)
+
+        permanent_image_url = f"http://127.0.0.1:8000/uploads/{unique_filename}"
+        # --------------------------------------------------
+
         image = Image.open(io.BytesIO(contents)).convert("RGB")
         raw_results = pipeline.process_pil_image(image)
         
         # --- ENSEMBLE AGGREGATION LOGIC ---
         
         # Extract individual model data
-        resnet_data = raw_results.get("ResNet_SkinType", {}).get("data", {})
+        resnet_data = raw_results.get("Skin_Type_ResNet50", {}).get("data", {})
         effnet_data = raw_results.get("Condition_Classifier_EfficientNet_b3", {}).get("data", {})
         severity_data = raw_results.get("Severity_Regressor_EfficientNet_b3", {}).get("data", {})
 
-        # Skin Type Conflict Resolution
+        # --- UPDATED: Skin Type Conflict Resolution ---
         base_skin_type = resnet_data.get("predicted_class", "unknown").lower()
+        resnet_confidence = resnet_data.get("confidence", 0.0)
         effnet_top_class = effnet_data.get("predicted_class", "unknown").lower()
         
+        # Threshold for trusting the ResNet binary classifier. 
+        # Since 0.50 is a random guess, 0.70 ensures it's fairly confident.
+        RESNET_CONFIDENCE_THRESHOLD = 0.70 
+        
         final_skin_type = base_skin_type
-        # If effnet predicts a valid skin type that CONFLICTS with ResNet, call it combination
-        if effnet_top_class in ["dry", "normal", "oily"] and effnet_top_class != base_skin_type:
-            final_skin_type = "combination"
+
+        # Only allow EfficientNet to influence the skin type if ResNet is uncertain
+        if resnet_confidence < RESNET_CONFIDENCE_THRESHOLD:
+            # If effnet predicts a valid skin type that CONFLICTS with ResNet, call it combination
+            if effnet_top_class in ["dry", "normal", "oily"] and effnet_top_class != base_skin_type:
+                final_skin_type = "combination"
+        # ----------------------------------------------
 
         # Extract Skin Conditions via Probability Threshold
         detected_conditions = []
@@ -374,7 +443,8 @@ async def predict_image(file: UploadFile = File(...)):
             "severity_score": severity_data.get("severity_score"),
             "clinical_verdict": severity_data.get("clinical_verdict"),
             # Include raw data so frontend can still access individual confidences if needed
-            "raw_model_data": raw_results 
+            "raw_model_data": raw_results,
+            "image_url": permanent_image_url
         }
 
         return {
@@ -456,6 +526,65 @@ async def recommend_products(req: RecommendationRequest):
         raise HTTPException(status_code=500, detail=f"Dataset column error: Missing {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Recommendation engine error: {str(e)}")
+    
+@app.post("/signup/")
+async def signup(req: SignupRequest):
+    if req.email in users_db:
+        raise HTTPException(status_code=400, detail="Email already registered.")
+    
+    # In a real app, you'd hash the password here!
+    users_db[req.email] = req.model_dump()
+    save_users()
+    
+    return {"status": "success", "user": {"name": req.name, "email": req.email}}
+
+@app.post("/login/")
+async def login(req: LoginRequest):
+    user = users_db.get(req.email)
+    if not user or user["password"] != req.password:
+        raise HTTPException(status_code=401, detail="Invalid email or password.")
+        
+    return {"status": "success", "user": {"name": user["name"], "email": user["email"]}}
+
+@app.post("/history/")
+async def add_history(record: ScanRecord):
+    if record.email not in users_db:
+        raise HTTPException(status_code=404, detail="User not found.")
+    
+    if "history" not in users_db[record.email]:
+        users_db[record.email]["history"] = []
+        
+    users_db[record.email]["history"].append(record.model_dump())
+    save_users()
+    return {"status": "success"}
+
+@app.post("/questionnaire/")
+async def save_questionnaire(data: QuestionnaireData):
+    if data.email not in users_db:
+        raise HTTPException(status_code=404, detail="User not found.")
+        
+    users_db[data.email]["questionnaire"] = data.answers
+    save_users()
+    return {"status": "success"}
+
+@app.get("/profile/{email}")
+async def get_profile(email: str):
+    if email not in users_db:
+        raise HTTPException(status_code=404, detail="User not found.")
+        
+    user_data = users_db[email]
+    
+    # Strip password before sending to frontend
+    safe_data = {k: v for k, v in user_data.items() if k != "password"}
+    
+    # Ensure keys exist for new users
+    if "history" not in safe_data:
+        safe_data["history"] = []
+    if "questionnaire" not in safe_data:
+        safe_data["questionnaire"] = {}
+        
+    return {"status": "success", "data": safe_data}
+
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

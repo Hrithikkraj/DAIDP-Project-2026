@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AppLayout, useDermaToast } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Slider } from "@/components/ui/slider";
-import { ArrowRight, ArrowLeft, CheckCircle2, ClipboardList } from "lucide-react";
+import { ArrowRight, ArrowLeft, CheckCircle2, ClipboardList, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
 
@@ -87,14 +87,58 @@ export default function Questionnaire() {
   const progress = ((step) / STEPS.length) * 100;
   const completedProgress = (step + (isAnswered ? 1 : 0)) / STEPS.length * 100;
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (!isAnswered) return;
-    if (step < STEPS.length - 1) setStep(s => s + 1);
-    else {
+    
+    if (step < STEPS.length - 1) {
+      setStep(s => s + 1);
+    } else {
+      // --- FINAL STEP: SAVE TO BACKEND ---
+      const savedUser = localStorage.getItem("derma_user");
+      if (savedUser) {
+        const user = JSON.parse(savedUser);
+        try {
+          await fetch("http://127.0.0.1:8000/questionnaire/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: user.email,
+              answers: { ...answers, stress: stressLevel[0] }
+            })
+          });
+        } catch (e) {
+          console.error("Failed to save questionnaire", e);
+        }
+      }
+      
       setSubmitted(true);
       addToast("Profile updated successfully!", "success");
     }
   };
+
+  useEffect(() => {
+    const checkExisting = async () => {
+      const savedUser = localStorage.getItem("derma_user");
+      if (savedUser) {
+        const user = JSON.parse(savedUser);
+        try {
+          const res = await fetch(`http://127.0.0.1:8000/profile/${user.email}`);
+          const data = await res.json();
+          
+          if (data.status === "success" && Object.keys(data.data.questionnaire).length > 0) {
+            setAnswers(data.data.questionnaire);
+            if (data.data.questionnaire.stress) {
+              setStressLevel([data.data.questionnaire.stress]);
+            }
+            setSubmitted(true);
+          }
+        } catch (e) {
+          console.error("Failed to fetch existing questionnaire", e);
+        }
+      }
+    };
+    checkExisting();
+  }, []);
 
   const handleRadio = (value: string) => {
     setAnswers(prev => ({ ...prev, [current.id]: value }));
@@ -108,8 +152,8 @@ export default function Questionnaire() {
             <CheckCircle2 className="w-12 h-12" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Profile Updated!</h1>
-            <p className="text-muted-foreground text-lg mt-2 max-w-md">Your lifestyle context has been incorporated into your AI profile for more accurate future scans.</p>
+            <h1 className="text-3xl font-bold tracking-tight">Profile Up to Date</h1>
+            <p className="text-muted-foreground text-lg mt-2 max-w-md">Your lifestyle context is actively being used by our AI to personalize your routine.</p>
           </div>
           <div className="bg-primary/5 dark:bg-primary/10 rounded-2xl p-5 w-full max-w-sm text-left space-y-2" role="list" aria-label="Your submitted answers">
             {STEPS.map(s => (
@@ -121,9 +165,26 @@ export default function Questionnaire() {
               </div>
             ))}
           </div>
-          <Link href="/dashboard" className="mt-4 rounded-full px-8 h-12 shadow-md bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center font-medium" aria-label="Return to dashboard">
-            Return to Dashboard
-          </Link>
+          
+          {/* Action Buttons Container */}
+          <div className="flex flex-col w-full max-w-sm gap-3 mt-4">
+            <Link href="/dashboard" className="w-full rounded-full h-12 shadow-md bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center font-medium" aria-label="Return to dashboard">
+              Return to Dashboard
+            </Link>
+            
+            {/* NEW UPDATE BUTTON */}
+            <Button 
+              variant="outline" 
+              className="w-full rounded-full h-12 border-slate-200 dark:border-zinc-800 text-muted-foreground hover:text-foreground"
+              onClick={() => {
+                setSubmitted(false);
+                setStep(0); // Start from the beginning, but keeping current answers
+              }}
+            >
+              <RefreshCw className="w-4 h-4 mr-2" aria-hidden />
+              Update Lifestyle Context
+            </Button>
+          </div>
         </div>
       </AppLayout>
     );
