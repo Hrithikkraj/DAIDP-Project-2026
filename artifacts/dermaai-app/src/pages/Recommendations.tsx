@@ -55,15 +55,17 @@ export default function Recommendations() {
   const [products, setProducts] = useState<ApiProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [hasScan, setHasScan] = useState<boolean>(true); // NEW STATE: Tracks if the user has scan data
+  const [hasScan, setHasScan] = useState<boolean>(true); 
   const { addToast } = useDermaToast();
 
   useEffect(() => {
     const fetchRecommendations = async () => {
       try {
-        const savedData = localStorage.getItem("derma_scan_result");
+        // --- FIXED: Check sessionStorage for either live or historical data ---
+        const liveScan = sessionStorage.getItem("derma_live_scan");
+        const pastScan = sessionStorage.getItem("derma_past_scan");
+        const savedData = liveScan || pastScan;
         
-        // --- NEW LOGIC: Abort early if no scan data exists ---
         if (!savedData) {
           setHasScan(false);
           setLoading(false);
@@ -73,16 +75,19 @@ export default function Recommendations() {
         setHasScan(true);
         const parsedData = JSON.parse(savedData);
         
-        // Grab the unified base skin type
-        const skinType = parsedData.final_skin_type || "balanced";
+        // Grab the unified base skin type (Handles both live format and historical format)
+        const skinType = parsedData.final_skin_type || parsedData.hydration || "balanced";
         
-        // If a condition is detected, use the first one. If empty, clear the concern to search broadly.
+        // Determine the primary concern
         let concern = "";
         if (parsedData.detected_conditions && parsedData.detected_conditions.length > 0) {
           concern = parsedData.detected_conditions[0];
+        } else if (parsedData.acneLevel && parsedData.acneLevel !== "Clear") {
+          // Fallback for historical data that only has clinical verdict saved
+          concern = "acne";
         }
         
-        // Grab confidence from the base ResNet model if available
+        // Grab confidence (default to high if viewing a historical scan)
         const confidence = parsedData.raw_model_data?.Skin_Type_ResNet50?.data?.confidence || 0.85;
 
         const response = await fetch("http://127.0.0.1:8000/recommend/", {
@@ -129,7 +134,7 @@ export default function Recommendations() {
           <p className="text-muted-foreground text-lg">Curated skincare formulas clinically matched to your latest scan results.</p>
         </div>
 
-        {/* --- NEW LOGIC: Empty State for New Users --- */}
+        {/* Empty State for New Users */}
         {!hasScan && !loading && (
           <div className="bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl p-12 text-center max-w-2xl mx-auto shadow-sm mt-8 animate-in zoom-in-95">
             <div className="w-20 h-20 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-6">
