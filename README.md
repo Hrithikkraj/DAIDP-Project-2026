@@ -2,6 +2,40 @@
 
 DermaAI is a monorepo with a React frontend and a Python FastAPI backend for skin analysis and recommendations.
 
+## Project Overview
+
+DermaAI is an AI-assisted skincare analysis platform designed to support users with a guided skin assessment workflow and personalized product suggestions. The project combines:
+
+- A web interface for onboarding, scan upload/capture, result visualization, history, and recommendations.
+- A FastAPI backend for image analysis, user profile handling, and recommendation orchestration.
+- A modular repository structure that separates app UI, API services, and shared libraries for easier team collaboration and future scaling.
+
+The current implementation also includes a safe fallback mode so the full product flow remains testable even when model weights or product CSV files are unavailable.
+
+## Use Cases
+
+- User self-assessment:
+	Upload or capture a face image, receive an AI-generated skin summary, and track scan history.
+- Product discovery:
+	Get condition-aware recommendations filtered by predicted skin type and concern.
+- Academic/project demonstration:
+	Showcase end-to-end ML-enabled product behavior (frontend + backend + API docs) during reviews or presentations.
+- Iterative ML deployment:
+	Run the same application in demo mode during development, then switch to real models by adding trained weight files.
+
+## Deliverables
+
+- Working full-stack application:
+	React frontend and FastAPI backend running locally with documented startup steps.
+- Skin analysis API endpoints:
+	Prediction, recommendation, authentication, questionnaire, profile, and history APIs.
+- Demo-safe execution mode:
+	Automatic fallback responses when required model/data files are missing.
+- Developer documentation:
+	Clear setup, run, troubleshooting, and environment guidance in this README.
+- Version-controlled project structure:
+	Monorepo with frontend, backend, and shared package modules suitable for extension.
+
 ---
 
 ## Prerequisites
