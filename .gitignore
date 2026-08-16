@@ -45,3 +45,10 @@ Thumbs.db
 .github/instructions/nx.instructions.md
 .cache/
 .local/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+uploads/
+users_db.json

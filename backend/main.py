@@ -17,6 +17,37 @@ import os
 import uuid
 from fastapi.staticfiles import StaticFiles
 
+MODEL_WEIGHTS = {
+    "skin_type": "best_skin_model_weights.pth",
+    "condition": "best_skin_model.pth",
+    "severity": "best_severity_model.pth",
+}
+PRODUCT_CSV_PATH = "./skincare_products/Skinpro.csv"
+
+FALLBACK_PRODUCTS = [
+    {
+        "Skin type": "oily",
+        "Product": "Gentle Foaming Cleanser",
+        "Concern": "acne",
+        "product_url": "https://example.com/products/gentle-foaming-cleanser",
+        "product_pic": "https://images.unsplash.com/photo-1611930022073-b7a4ba5fcccd?q=80&w=800&auto=format&fit=crop",
+    },
+    {
+        "Skin type": "combination",
+        "Product": "Niacinamide Daily Serum",
+        "Concern": "pigmentation",
+        "product_url": "https://example.com/products/niacinamide-daily-serum",
+        "product_pic": "https://images.unsplash.com/photo-1556229010-aa3f7ff66b24?q=80&w=800&auto=format&fit=crop",
+    },
+    {
+        "Skin type": "dry",
+        "Product": "Ceramide Barrier Moisturizer",
+        "Concern": "hydration",
+        "product_url": "https://example.com/products/ceramide-barrier-moisturizer",
+        "product_pic": "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?q=80&w=800&auto=format&fit=crop",
+    },
+]
+
 # --- Model Classes ---
 
 class BaseVisionModel:
@@ -267,6 +298,9 @@ pipeline = None
 # Global variable to hold recommendation products
 df = None
 
+# True when model weights are unavailable; API returns deterministic demo output.
+demo_mode = False
+
 # --- Quick JSON Database for Users ---
 DB_FILE = "users_db.json"
 users_db = {}
@@ -312,63 +346,128 @@ class QuestionnaireData(BaseModel):
     email: str
     answers: dict
 
+
+def _build_demo_analysis(image_url: str) -> Dict[str, Any]:
+    demo_raw_data = {
+        "Skin_Type_ResNet50": {
+            "status": "success",
+            "data": {
+                "predicted_class": "combination",
+                "confidence": 0.83,
+                "all_probabilities": {"dry": 0.28, "oily": 0.72},
+            },
+        },
+        "Condition_Classifier_EfficientNet_b3": {
+            "status": "success",
+            "data": {
+                "predicted_class": "Acne",
+                "confidence": 0.66,
+                "all_probabilities": {
+                    "Acne": 0.66,
+                    "Dry": 0.11,
+                    "Normal": 0.08,
+                    "Oily": 0.09,
+                    "Pigmentation": 0.06,
+                },
+            },
+        },
+        "Severity_Regressor_EfficientNet_b3": {
+            "status": "success",
+            "data": {"severity_score": 1.3, "clinical_verdict": "Mild"},
+        },
+    }
+
+    return {
+        "final_skin_type": "combination",
+        "detected_conditions": ["acne"],
+        "severity_score": 1.3,
+        "clinical_verdict": "Mild",
+        "raw_model_data": demo_raw_data,
+        "image_url": image_url,
+        "mode": "demo",
+    }
+
 @app.on_event("startup")
 async def load_ml_models():
     """
     This function runs once when the server starts. 
     It prevents the API from loading the heavy .pth files on every single request.
     """
-    global pipeline
+    global pipeline, demo_mode
     logging.info("Initializing Machine Learning Models...")
-    
-    try:
-        # Initialize models here
-        skin_model = SkinTypeResNetModel(
-            model_name="Skin_Type_ResNet50", 
-            model_path="best_skin_model_weights.pth"
+
+    missing_weights = [
+        path for path in MODEL_WEIGHTS.values() if not os.path.exists(path)
+    ]
+
+    if missing_weights:
+        demo_mode = True
+        pipeline = None
+        logging.warning(
+            "Model weight files not found (%s). Running in demo mode.",
+            ", ".join(missing_weights),
         )
+    else:
+        try:
+            # Initialize models here
+            skin_model = SkinTypeResNetModel(
+                model_name="Skin_Type_ResNet50", 
+                model_path=MODEL_WEIGHTS["skin_type"]
+            )
 
-        # fp17k_high = Fitzpatrick17kModel(
-        #     model_name="Fitzpatrick17k_High",
-        #     model_path="model_path_10_high_random_holdout.pth",
-        #     label_map_path="label_map_high.json"
-        # )
+            # fp17k_high = Fitzpatrick17kModel(
+            #     model_name="Fitzpatrick17k_High",
+            #     model_path="model_path_10_high_random_holdout.pth",
+            #     label_map_path="label_map_high.json"
+            # )
 
-        # fp17k_mid = Fitzpatrick17kModel(
-        #     model_name="Fitzpatrick17k_Mid",
-        #     model_path="model_path_10_mid_random_holdout.pth",
-        #     label_map_path="label_map_mid.json"
-        # )
+            # fp17k_mid = Fitzpatrick17kModel(
+            #     model_name="Fitzpatrick17k_Mid",
+            #     model_path="model_path_10_mid_random_holdout.pth",
+            #     label_map_path="label_map_mid.json"
+            # )
 
-        # fp17k_low = Fitzpatrick17kModel(
-        #     model_name="Fitzpatrick17k_low",
-        #     model_path="model_path_10_low_random_holdout.pth",
-        #     label_map_path="label_map_low.json"
-        # )
+            # fp17k_low = Fitzpatrick17kModel(
+            #     model_name="Fitzpatrick17k_low",
+            #     model_path="model_path_10_low_random_holdout.pth",
+            #     label_map_path="label_map_low.json"
+            # )
 
-        condition_model = ConditionClassifier(
-            model_name="Condition_Classifier_EfficientNet_b3",
-            model_path="best_skin_model.pth"
-        )
+            condition_model = ConditionClassifier(
+                model_name="Condition_Classifier_EfficientNet_b3",
+                model_path=MODEL_WEIGHTS["condition"]
+            )
 
-        severity_model = SeverityRegressor(
-            model_name="Severity_Regressor_EfficientNet_b3",
-            model_path="best_severity_model.pth"
-        )
-        
-        # Add more models to this list as you build them
-        pipeline = MultiModelPipeline(models=[skin_model, condition_model, severity_model])
-        logging.info("Models loaded successfully into memory.")
-        
-    except Exception as e:
-        logging.error(f"Failed to load models: {e}")
+            severity_model = SeverityRegressor(
+                model_name="Severity_Regressor_EfficientNet_b3",
+                model_path=MODEL_WEIGHTS["severity"]
+            )
+            
+            # Add more models to this list as you build them
+            pipeline = MultiModelPipeline(models=[skin_model, condition_model, severity_model])
+            demo_mode = False
+            logging.info("Models loaded successfully into memory.")
+            
+        except Exception as e:
+            demo_mode = True
+            pipeline = None
+            logging.error(f"Failed to load models. Running in demo mode: {e}")
 
     global df
     logging.info("Initializing recommendation products...")
 
     try:
-        df = pd.read_csv("./skincare_products/Skinpro.csv")
+        if os.path.exists(PRODUCT_CSV_PATH):
+            df = pd.read_csv(PRODUCT_CSV_PATH)
+            logging.info("Recommendation dataset loaded successfully.")
+        else:
+            df = None
+            logging.warning(
+                "Recommendation dataset not found at %s. Using fallback products.",
+                PRODUCT_CSV_PATH,
+            )
     except Exception as e:
+        df = None
         logging.error(f"Failed to read recommendation product dataset: {e}")
 
 @app.post("/predict/")
@@ -397,6 +496,13 @@ async def predict_image(file: UploadFile = File(...)):
         # --------------------------------------------------
 
         image = Image.open(io.BytesIO(contents)).convert("RGB")
+
+        if pipeline is None:
+            return {
+                "filename": file.filename,
+                "analysis": _build_demo_analysis(permanent_image_url),
+            }
+
         raw_results = pipeline.process_pil_image(image)
         
         # --- ENSEMBLE AGGREGATION LOGIC ---
@@ -467,7 +573,12 @@ async def recommend_products(req: RecommendationRequest):
     """
     global df
     if df is None:
-        raise HTTPException(status_code=500, detail="Product dataset is not loaded.")
+        return {
+            "status": "success",
+            "matches_found": len(FALLBACK_PRODUCTS),
+            "confidence_mode": "demo_fallback",
+            "recommendations": FALLBACK_PRODUCTS,
+        }
 
     try:
         # Standardize inputs for case-insensitive matching
