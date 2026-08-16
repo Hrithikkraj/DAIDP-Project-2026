@@ -1,215 +1,134 @@
-# DermaAI - Skincare Web Application
+# DermaAI - Skin Analysis Project
 
-A modern AI-powered skincare analysis and recommendation platform built with React, TypeScript, and Vite. This is a monorepo project that includes a frontend application and API server.
-
----
-
-## 📋 Prerequisites
-
-Before running this project locally, ensure you have the following installed on your PC:
-
-- **Node.js** v20 or later - [Download here](https://github.com/coreybutler/nvm-windows/releases)
-- **pnpm** (package manager for monorepos) - Install globally via:
-  ```powershell
-  npm install -g pnpm
-  ```
+DermaAI is a monorepo with a React frontend and a Python FastAPI backend for skin analysis and recommendations.
 
 ---
 
-## 🚀 Quick Start
+## Prerequisites
 
-### 1. Clone or Copy the Project
+Install these first:
 
-If cloned from GitHub:
-```powershell
-git clone <repository-url>
-cd "skincare web app"
-```
+- Node.js 20+
+- pnpm
+- Python 3.11+
 
-Or if you have the project folder already, navigate to it.
+Install pnpm (if needed):
 
-### 2. Install Dependencies
-
-In the project root directory, install all dependencies across the monorepo:
-
-```powershell
-pnpm install
-```
-
-This will install dependencies for:
-- Frontend app (`artifacts/dermaai-app`)
-- API server (`artifacts/api-server`)
-- Shared libraries (`lib/` folder packages)
-
-### 3. Run the Development Servers
-
-#### Option A: Run Frontend Only (Recommended for UI Development)
-
-```powershell
-cd artifacts/dermaai-app
-pnpm run dev
-```
-
-The frontend will start at: **http://localhost:5173/**
-
-#### Option B: Run Both Frontend & API Server
-
-**Terminal 1 - Start API Server:**
-```powershell
-cd artifacts/api-server
-pnpm run dev
-```
-
-The API server will start at: **http://localhost:3000/**
-
-**Terminal 2 - Start Frontend:**
-```powershell
-cd artifacts/dermaai-app
-pnpm run dev
-```
-
-The frontend will start at: **http://localhost:5173/**
-
-#### Option C: Run from Project Root (All Packages)
-
-```powershell
-pnpm run dev
-```
-
-This runs all dev scripts defined in the workspace packages.
-
----
-
-## 📁 Project Structure
-
-```
-skincare-web-app/
-├── artifacts/
-│   ├── api-server/          # Node.js/Express API server
-│   │   └── src/
-│   │       ├── app.ts       # Express app configuration
-│   │       ├── index.ts     # Server entry point
-│   │       ├── routes/      # API endpoints
-│   │       └── middlewares/ # Custom middleware
-│   │
-│   └── dermaai-app/         # React frontend application
-│       └── src/
-│           ├── pages/       # Page components
-│           ├── components/  # Reusable UI components
-│           ├── hooks/       # Custom React hooks
-│           ├── lib/         # Utilities and helpers
-│           └── App.tsx      # Main app component
-│
-├── lib/
-│   ├── api-client-react/    # React API client library
-│   ├── api-spec/            # OpenAPI specification
-│   ├── api-zod/             # Zod schema validation
-│   └── db/                  # Database schema & config
-│
-├── tsconfig.base.json       # Base TypeScript config
-├── pnpm-workspace.yaml      # Monorepo workspace config
-└── package.json             # Root package configuration
-```
-
----
-
-## 📝 Available Scripts
-
-### At Project Root
-
-- `pnpm install` - Install dependencies for all packages
-- `pnpm run dev` - Start dev servers for all packages
-
-### In `artifacts/dermaai-app` (Frontend)
-
-- `pnpm run dev` - Start Vite dev server
-- `pnpm run build` - Build for production
-- `pnpm run preview` - Preview production build
-- `pnpm run lint` - Run ESLint
-
-### In `artifacts/api-server` (Backend)
-
-- `pnpm run dev` - Start API server with hot reload
-- `pnpm run build` - Build the server
-- `pnpm run start` - Run the built server
-
----
-
-## 🌐 Accessing the Application
-
-Once everything is running:
-
-- **Frontend UI**: http://localhost:5173/
-- **API Server**: http://localhost:3000/
-
----
-
-## 🔧 Configuration
-
-### Environment Variables
-
-If you need to configure environment variables:
-
-- Create a `.env.local` file in `artifacts/dermaai-app/` for frontend variables
-- Create a `.env.local` file in `artifacts/api-server/` for backend variables
-
-Check existing `.env.example` files in each folder for reference.
-
----
-
-## ⚠️ Troubleshooting
-
-### Issue: Port Already in Use
-
-If port 5173 or 3000 is already in use:
-
-- Change the port in the dev server configuration
-- Or kill the process using the port:
-  ```powershell
-  # Find process on port 5173
-  netstat -ano | findstr :5173
-  
-  # Kill the process (replace PID with the process ID)
-  taskkill /PID <PID> /F
-  ```
-
-### Issue: pnpm command not found
-
-Make sure pnpm is installed globally:
 ```powershell
 npm install -g pnpm
 ```
 
-Verify installation:
-```powershell
-pnpm --version
-```
+---
 
-### Issue: Dependencies not installing
+## One-Time Setup (Windows PowerShell)
 
-Try clearing pnpm cache:
+Run from project root:
+
 ```powershell
-pnpm store prune
+cd "C:\Users\lenovo\Desktop\IIIT\sem 6\DAIDP\Project\Derma-AI---Skin-analysis"
 pnpm install
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install fastapi uvicorn pillow torch torchvision pandas pydantic python-multipart
 ```
 
-### Issue: Port 8080 errors in API
-
-Check if the API server is already running or if the port is configured differently. Check `artifacts/api-server/src/index.ts` for the port configuration.
+Note: If your terminal already shows `(.venv)`, the environment is active and this is normal.
 
 ---
 
-## 📚 Development Workflow
+## Run the Project (2 Terminals)
 
-1. **Frontend Development**: Work in `artifacts/dermaai-app/src/`
-2. **Backend Development**: Work in `artifacts/api-server/src/`
-3. **Shared Code**: Use packages in `lib/` folder for shared utilities
-4. **Dependencies**: Always run `pnpm install` from project root after adding new packages
+### Terminal 1: Start Python Backend
+
+```powershell
+cd "C:\Users\lenovo\Desktop\IIIT\sem 6\DAIDP\Project\Derma-AI---Skin-analysis"
+python backend\main.py
+```
+
+If Python is not picked from `.venv`, use:
+
+```powershell
+.\.venv\Scripts\python.exe backend\main.py
+```
+
+Backend URL:
+
+- http://127.0.0.1:8000
+- API docs: http://127.0.0.1:8000/docs
+
+### Terminal 2: Start Frontend
+
+```powershell
+cd "C:\Users\lenovo\Desktop\IIIT\sem 6\DAIDP\Project\Derma-AI---Skin-analysis"
+pnpm --dir artifacts\dermaai-app run dev
+```
+
+Frontend URL:
+
+- Usually http://localhost:5173
+- If 5173 is busy, Vite auto-selects another port (for example 5174). Use the URL printed in terminal.
 
 ---
 
-## 🎯 Next Steps
+## Current Backend Behavior Without Model Files
 
-- Open the frontend at `http://localhost:5173/`
-- Start building and enjoy! 🎉
-- Check individual package `README.md` files for more detailed documentation
+The backend now supports fallback mode.
+
+If these files are missing:
+
+- `best_skin_model_weights.pth`
+- `best_skin_model.pth`
+- `best_severity_model.pth`
+- `backend/skincare_products/Skinpro.csv`
+
+the server still starts and returns demo analysis/recommendation responses, so the full UI flow works for development/testing.
+
+---
+
+## Optional: Real Model/Data Files
+
+When available, place files at:
+
+- `backend/best_skin_model_weights.pth`
+- `backend/best_skin_model.pth`
+- `backend/best_severity_model.pth`
+- `backend/skincare_products/Skinpro.csv`
+
+Then restart the backend.
+
+---
+
+## Troubleshooting
+
+### 1) `pip` installs to wrong location
+
+Use venv Python explicitly:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install fastapi uvicorn pillow torch torchvision pandas pydantic python-multipart
+```
+
+### 2) Port already in use
+
+Check and kill process:
+
+```powershell
+netstat -ano | findstr :5173
+taskkill /PID <PID> /F
+```
+
+Or just use the new frontend URL Vite prints.
+
+### 3) VS Code auto-activates venv
+
+This is expected behavior. If you want to disable it:
+
+- VS Code setting: `python.terminal.activateEnvironment = false`
+
+---
+
+## What to Open
+
+After both terminals are running:
+
+- Frontend: URL shown by Vite (for example http://localhost:5174)
+- Backend docs: http://127.0.0.1:8000/docs
